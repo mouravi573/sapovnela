@@ -65,7 +65,7 @@ const stats = [
   { val: "Free", label: "Forever for independents" },
 ];
 
-function NavBar() {
+function NavBar({ lang, setLang }) {
   return (
     <nav
       style={{
@@ -114,9 +114,42 @@ function NavBar() {
           საპოვ<span style={{ color: "#2A7A6E" }}>ნელა</span>
         </span>
       </Link>
-      <span style={{ fontSize: "13px", color: "#6BA89E" }}>
-        Pharmacy Partner Portal
-      </span>
+      <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+        <span style={{ fontSize: "13px", color: "#6BA89E" }}>
+          {lang === "en"
+            ? "Pharmacy Partner Portal"
+            : "აფთიაქის პარტნიორის პორტალი"}
+        </span>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            background: "#EBF6F4",
+            borderRadius: "20px",
+            padding: "3px",
+            gap: "2px",
+          }}
+        >
+          {["en", "ge"].map((l) => (
+            <button
+              key={l}
+              onClick={() => setLang(l)}
+              style={{
+                fontSize: "12px",
+                fontWeight: lang === l ? 600 : 400,
+                padding: "4px 12px",
+                borderRadius: "16px",
+                border: "none",
+                cursor: "pointer",
+                background: lang === l ? "#2A7A6E" : "transparent",
+                color: lang === l ? "#fff" : "#6BA89E",
+              }}
+            >
+              {l === "en" ? "EN" : "ქარ"}
+            </button>
+          ))}
+        </div>
+      </div>
     </nav>
   );
 }
@@ -443,6 +476,7 @@ function Success() {
 
 export default function PharmacyPortal() {
   const [step, setStep] = useState("landing");
+  const [lang, setLang] = useState("en");
   const [form, setForm] = useState({
     name: "",
     address: "",
@@ -465,7 +499,7 @@ export default function PharmacyPortal() {
         fontFamily: "system-ui, sans-serif",
       }}
     >
-      <NavBar />
+      <NavBar lang={lang} setLang={setLang} />
       {step === "landing" && (
         <Landing
           onRegister={() => setStep("register")}
