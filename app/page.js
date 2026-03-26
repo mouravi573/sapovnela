@@ -128,6 +128,19 @@ function Logo() {
   );
 }
 
+const districtCoords = {
+  Vake: { lat: 41.701, lng: 44.7681 },
+  Saburtalo: { lat: 41.721, lng: 44.753 },
+  Mtatsminda: { lat: 41.6934, lng: 44.7992 },
+  Isani: { lat: 41.6878, lng: 44.82 },
+  Samgori: { lat: 41.672, lng: 44.848 },
+  Didube: { lat: 41.738, lng: 44.785 },
+  Nadzaladevi: { lat: 41.71, lng: 44.83 },
+  Gldani: { lat: 41.78, lng: 44.82 },
+  Chugureti: { lat: 41.695, lng: 44.805 },
+  Krtsanisi: { lat: 41.675, lng: 44.81 },
+};
+
 function getDistance(lat1, lng1, lat2, lng2) {
   if (!lat1 || !lat2) return null;
   const R = 6371;
@@ -227,6 +240,9 @@ export default function Home() {
   }, {});
 
   // Collect all unique pharmacies from results for map
+  const effectiveLocation =
+    userLocation || (customDistrict ? districtCoords[customDistrict] : null);
+
   const allPharmacies = Object.values(grouped)
     .flatMap(({ pharmacies }) => pharmacies)
     .filter((ph, idx, self) => self.findIndex((p) => p.id === ph.id) === idx)
@@ -756,25 +772,28 @@ export default function Home() {
               height: "320px",
             }}
           >
-            <MapView pharmacies={allPharmacies} userLocation={userLocation} />
+            <MapView
+              pharmacies={allPharmacies}
+              userLocation={effectiveLocation}
+            />
           </div>
         )}
 
         {!loading &&
           Object.values(grouped).map(({ medicine, pharmacies }) => {
-            const sortedPharmacies = userLocation
+            const sortedPharmacies = effectiveLocation
               ? [...pharmacies].sort((a, b) => {
                   const dA =
                     getDistance(
-                      userLocation.lat,
-                      userLocation.lng,
+                      effectiveLocation.lat,
+                      effectiveLocation.lng,
                       a.lat,
                       a.lng,
                     ) || 999;
                   const dB =
                     getDistance(
-                      userLocation.lat,
-                      userLocation.lng,
+                      effectiveLocation.lat,
+                      effectiveLocation.lng,
                       b.lat,
                       b.lng,
                     ) || 999;
@@ -862,10 +881,10 @@ export default function Home() {
                 </div>
 
                 {sortedPharmacies.map((ph, i) => {
-                  const dist = userLocation
+                  const dist = effectiveLocation
                     ? getDistance(
-                        userLocation.lat,
-                        userLocation.lng,
+                        effectiveLocation.lat,
+                        effectiveLocation.lng,
                         ph.lat,
                         ph.lng,
                       )
