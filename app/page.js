@@ -1,5 +1,10 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import dynamic from "next/dynamic";
+
+const MapView = dynamic(() => import("../components/MapView"), {
+  ssr: false,
+});
 
 const translations = {
   en: {
@@ -22,7 +27,7 @@ const translations = {
     searching: "Searching pharmacies near you...",
     noResults: (q) => `No results found for ${q}`,
     stats: [
-      { val: "847", label: "Medicines tracked" },
+      { val: "474", label: "Medicines tracked" },
       { val: "124", label: "Pharmacies listed" },
       { val: "Free", label: "No registration" },
     ],
@@ -30,9 +35,13 @@ const translations = {
     portal: "Pharmacy Portal",
     generic: "Generic",
     location: "Vake, Tbilisi",
+    locating: "Locating...",
+    yourLocation: "Your location",
     tagline: "Georgia's medicine price finder",
     askPlaceholder: "Ask about this medicine...",
     askBtn: "Ask →",
+    showMap: "Show map",
+    hideMap: "Hide map",
   },
   ge: {
     find: "იპოვე",
@@ -54,7 +63,7 @@ const translations = {
     searching: "ვეძებ აფთიაქებს შენთან ახლოს...",
     noResults: (q) => `ვერ ვიპოვე: ${q}`,
     stats: [
-      { val: "847", label: "წამალი" },
+      { val: "474", label: "წამალი" },
       { val: "124", label: "აფთიაქი" },
       { val: "უფასო", label: "რეგისტრაციის გარეშე" },
     ],
@@ -62,9 +71,13 @@ const translations = {
     portal: "აფთიაქის პორტალი",
     generic: "გენერიკი",
     location: "ვაკე, თბილისი",
+    locating: "მდებარეობა...",
+    yourLocation: "შენი მდებარეობა",
     tagline: "საქართველოს წამლების ფასების საძიებო",
     askPlaceholder: "დასვი კითხვა წამლის შესახებ...",
     askBtn: "კითხვა →",
+    showMap: "რუქის ჩვენება",
+    hideMap: "რუქის დამალვა",
   },
 };
 
@@ -115,6 +128,20 @@ function Logo() {
   );
 }
 
+function getDistance(lat1, lng1, lat2, lng2) {
+  if (!lat1 || !lat2) return null;
+  const R = 6371;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLng = ((lng2 - lng1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLng / 2) *
+      Math.sin(dLng / 2);
+  return (R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))).toFixed(1);
+}
+
 export default function Home() {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState([]);
@@ -124,6 +151,9 @@ export default function Home() {
   const [chatMessage, setChatMessage] = useState("");
   const [chatReply, setChatReply] = useState("");
   const [chatLoading, setChatLoading] = useState(false);
+  const [userLocation, setUserLocation] = useState(null);
+  const [locating, setLocating] = useState(false);
+  const [showMap, setShowMap] = useState(false);
   const t = translations[lang];
 
   async function handleSearch() {
@@ -142,6 +172,21 @@ export default function Home() {
 
   function handleKeyDown(e) {
     if (e.key === "Enter") handleSearch();
+  }
+
+  function getLocation() {
+    if (!navigator.geolocation) return;
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setUserLocation({
+          lat: pos.coords.latitude,
+          lng: pos.coords.longitude,
+        });
+        setLocating(false);
+      },
+      () => setLocating(false),
+    );
   }
 
   async function sendChat() {
@@ -178,6 +223,12 @@ export default function Home() {
       });
     return acc;
   }, {});
+
+  // Collect all unique pharmacies from results for map
+  const allPharmacies = Object.values(grouped)
+    .flatMap(({ pharmacies }) => pharmacies)
+    .filter((ph, idx, self) => self.findIndex((p) => p.id === ph.id) === idx)
+    .filter((ph) => ph.lat && ph.lng);
 
   const pad = { padding: "0 clamp(16px, 4vw, 40px)" };
 
@@ -342,20 +393,23 @@ export default function Home() {
               background: "transparent",
             }}
           />
+          {/* GPS Location badge */}
           <div
+            onClick={getLocation}
             style={{
               display: "flex",
               alignItems: "center",
               gap: "5px",
-              background: "#EBF6F4",
+              background: userLocation ? "#2A7A6E" : "#EBF6F4",
               border: "1px solid #A8D9D0",
-              color: "#2A7A6E",
+              color: userLocation ? "#fff" : "#2A7A6E",
               padding: "5px 10px",
               borderRadius: "12px",
               fontSize: "12px",
               fontWeight: 500,
               cursor: "pointer",
               flexShrink: 0,
+              transition: "all .2s",
             }}
           >
             <div
@@ -363,10 +417,10 @@ export default function Home() {
                 width: "7px",
                 height: "7px",
                 borderRadius: "50%",
-                background: "#2A7A6E",
+                background: userLocation ? "#fff" : "#2A7A6E",
               }}
             ></div>
-            {t.location}
+            {locating ? t.locating : userLocation ? t.yourLocation : t.location}
           </div>
           <button
             onClick={handleSearch}
@@ -536,6 +590,7 @@ export default function Home() {
             {t.searching}
           </div>
         )}
+
         {!loading && searched && results.length === 0 && (
           <div
             style={{
@@ -548,6 +603,7 @@ export default function Home() {
             {t.noResults(query)}
           </div>
         )}
+
         {!loading && !searched && (
           <div
             style={{
@@ -589,186 +645,282 @@ export default function Home() {
             ))}
           </div>
         )}
-        {!loading &&
-          Object.values(grouped).map(({ medicine, pharmacies }) => (
-            <div
-              key={medicine.id}
+
+        {/* Map toggle button */}
+        {!loading && searched && allPharmacies.length > 0 && (
+          <div style={{ marginBottom: "16px" }}>
+            <button
+              onClick={() => setShowMap(!showMap)}
               style={{
-                background: "#fff",
-                border: "1px solid #D0EBE7",
-                borderRadius: "14px",
-                padding: "16px",
-                marginBottom: "12px",
+                background: showMap ? "#2A7A6E" : "#EBF6F4",
+                color: showMap ? "#fff" : "#2A7A6E",
+                border: "1px solid #A8D9D0",
+                borderRadius: "10px",
+                padding: "8px 16px",
+                fontSize: "13px",
+                fontWeight: 500,
+                cursor: "pointer",
               }}
             >
+              🗺 {showMap ? t.hideMap : t.showMap}
+            </button>
+          </div>
+        )}
+
+        {/* Map */}
+        {showMap && allPharmacies.length > 0 && (
+          <div
+            style={{
+              marginBottom: "20px",
+              borderRadius: "14px",
+              overflow: "hidden",
+              border: "1px solid #D0EBE7",
+              height: "320px",
+            }}
+          >
+            <MapView pharmacies={allPharmacies} userLocation={userLocation} />
+          </div>
+        )}
+
+        {!loading &&
+          Object.values(grouped).map(({ medicine, pharmacies }) => {
+            const sortedPharmacies = userLocation
+              ? [...pharmacies].sort((a, b) => {
+                  const dA =
+                    getDistance(
+                      userLocation.lat,
+                      userLocation.lng,
+                      a.lat,
+                      a.lng,
+                    ) || 999;
+                  const dB =
+                    getDistance(
+                      userLocation.lat,
+                      userLocation.lng,
+                      b.lat,
+                      b.lng,
+                    ) || 999;
+                  return dA - dB;
+                })
+              : [...pharmacies].sort((a, b) => a.price - b.price);
+
+            return (
               <div
+                key={medicine.id}
                 style={{
-                  display: "flex",
-                  alignItems: "flex-start",
-                  justifyContent: "space-between",
-                  marginBottom: "14px",
-                  gap: "12px",
+                  background: "#fff",
+                  border: "1px solid #D0EBE7",
+                  borderRadius: "14px",
+                  padding: "16px",
+                  marginBottom: "12px",
                 }}
               >
-                <div style={{ minWidth: 0 }}>
-                  <h2
-                    style={{
-                      fontSize: "15px",
-                      fontWeight: 700,
-                      color: "#1A3A35",
-                      marginBottom: "4px",
-                    }}
-                  >
-                    {medicine.name}
-                  </h2>
-                  <p style={{ fontSize: "12px", color: "#9ABFBB" }}>
-                    {medicine.form} · {medicine.category} · {t.generic}:{" "}
-                    {medicine.generic_name}
-                  </p>
-                  <span
-                    style={{
-                      display: "inline-block",
-                      marginTop: "6px",
-                      background: "#EBF6F4",
-                      color: "#2A7A6E",
-                      border: "1px solid #A8D9D0",
-                      fontSize: "11px",
-                      fontWeight: 500,
-                      padding: "3px 10px",
-                      borderRadius: "10px",
-                    }}
-                  >
-                    {t.pharmaciesInStock(pharmacies.length)}
-                  </span>
-                </div>
-                <div style={{ textAlign: "right", flexShrink: 0 }}>
-                  <div style={{ fontSize: "11px", color: "#9ABFBB" }}>
-                    {t.from}
-                  </div>
-                  <div
-                    style={{
-                      fontSize: "24px",
-                      fontWeight: 700,
-                      color: "#2A7A6E",
-                      lineHeight: 1.1,
-                    }}
-                  >
-                    {Math.min(...pharmacies.map((p) => p.price)).toFixed(2)} ₾
-                  </div>
-                </div>
-              </div>
-              {pharmacies
-                .sort((a, b) => a.price - b.price)
-                .map((ph, i) => (
-                  <div
-                    key={ph.id}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "8px",
-                      padding: "8px 10px",
-                      borderRadius: "10px",
-                      background: i === 0 ? "#EBF6F4" : "#F8FDFC",
-                      marginBottom: "6px",
-                      flexWrap: "wrap",
-                    }}
-                  >
-                    <div
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "flex-start",
+                    justifyContent: "space-between",
+                    marginBottom: "14px",
+                    gap: "12px",
+                  }}
+                >
+                  <div style={{ minWidth: 0 }}>
+                    <h2
                       style={{
-                        width: "8px",
-                        height: "8px",
-                        borderRadius: "50%",
-                        flexShrink: 0,
-                        background: i === 0 ? "#2A7A6E" : "#C0DDD9",
+                        fontSize: "15px",
+                        fontWeight: 700,
+                        color: "#1A3A35",
+                        marginBottom: "4px",
                       }}
-                    ></div>
-                    <div style={{ flex: 1, minWidth: "120px" }}>
-                      <div
+                    >
+                      {medicine.name}
+                    </h2>
+                    {medicine.name_ge && (
+                      <p
                         style={{
-                          fontSize: "13px",
-                          fontWeight: 600,
-                          color: "#1A3A35",
+                          fontSize: "12px",
+                          color: "#2A7A6E",
+                          marginBottom: "2px",
                         }}
                       >
-                        {ph.name}
-                      </div>
-                      <div
-                        style={{
-                          fontSize: "11px",
-                          color: "#9ABFBB",
-                          marginTop: "2px",
-                        }}
-                      >
-                        {ph.address} · {ph.hours}
-                      </div>
+                        {medicine.name_ge}
+                      </p>
+                    )}
+                    <p style={{ fontSize: "12px", color: "#9ABFBB" }}>
+                      {medicine.form} · {medicine.category} · {t.generic}:{" "}
+                      {medicine.generic_name}
+                    </p>
+                    <span
+                      style={{
+                        display: "inline-block",
+                        marginTop: "6px",
+                        background: "#EBF6F4",
+                        color: "#2A7A6E",
+                        border: "1px solid #A8D9D0",
+                        fontSize: "11px",
+                        fontWeight: 500,
+                        padding: "3px 10px",
+                        borderRadius: "10px",
+                      }}
+                    >
+                      {t.pharmaciesInStock(pharmacies.length)}
+                    </span>
+                  </div>
+                  <div style={{ textAlign: "right", flexShrink: 0 }}>
+                    <div style={{ fontSize: "11px", color: "#9ABFBB" }}>
+                      {t.from}
                     </div>
                     <div
+                      style={{
+                        fontSize: "24px",
+                        fontWeight: 700,
+                        color: "#2A7A6E",
+                        lineHeight: 1.1,
+                      }}
+                    >
+                      {Math.min(...pharmacies.map((p) => p.price)).toFixed(2)} ₾
+                    </div>
+                  </div>
+                </div>
+
+                {sortedPharmacies.map((ph, i) => {
+                  const dist = userLocation
+                    ? getDistance(
+                        userLocation.lat,
+                        userLocation.lng,
+                        ph.lat,
+                        ph.lng,
+                      )
+                    : null;
+                  return (
+                    <div
+                      key={ph.id}
                       style={{
                         display: "flex",
                         alignItems: "center",
-                        gap: "6px",
+                        gap: "8px",
+                        padding: "8px 10px",
+                        borderRadius: "10px",
+                        background: i === 0 ? "#EBF6F4" : "#F8FDFC",
+                        marginBottom: "6px",
                         flexWrap: "wrap",
                       }}
                     >
-                      {i === 0 && (
-                        <span
-                          style={{
-                            fontSize: "11px",
-                            fontWeight: 600,
-                            background: "#FFF3E0",
-                            color: "#C47D00",
-                            border: "1px solid #FFD97A",
-                            padding: "3px 8px",
-                            borderRadius: "8px",
-                          }}
-                        >
-                          {t.cheapest}
-                        </span>
-                      )}
-                      {ph.is_independent && (
-                        <span
-                          style={{
-                            fontSize: "11px",
-                            fontWeight: 500,
-                            background: "#EBF6F4",
-                            color: "#2A7A6E",
-                            border: "1px solid #A8D9D0",
-                            padding: "3px 8px",
-                            borderRadius: "8px",
-                          }}
-                        >
-                          {t.independent}
-                        </span>
-                      )}
                       <div
                         style={{
-                          fontSize: "14px",
-                          fontWeight: 700,
-                          color: "#1A3A35",
-                        }}
-                      >
-                        {ph.price.toFixed(2)} ₾
-                      </div>
-                      <button
-                        style={{
-                          background: "#2A7A6E",
-                          color: "#fff",
-                          border: "none",
-                          borderRadius: "8px",
-                          padding: "6px 12px",
-                          fontSize: "12px",
-                          fontWeight: 500,
-                          cursor: "pointer",
+                          width: "8px",
+                          height: "8px",
+                          borderRadius: "50%",
                           flexShrink: 0,
+                          background: i === 0 ? "#2A7A6E" : "#C0DDD9",
+                        }}
+                      ></div>
+                      <div style={{ flex: 1, minWidth: "120px" }}>
+                        <div
+                          style={{
+                            fontSize: "13px",
+                            fontWeight: 600,
+                            color: "#1A3A35",
+                          }}
+                        >
+                          {ph.name}
+                        </div>
+                        <div
+                          style={{
+                            fontSize: "11px",
+                            color: "#9ABFBB",
+                            marginTop: "2px",
+                          }}
+                        >
+                          {ph.address} · {ph.hours}
+                          {dist && (
+                            <span
+                              style={{
+                                marginLeft: "6px",
+                                color: "#2A7A6E",
+                                fontWeight: 500,
+                              }}
+                            >
+                              📍 {dist} km
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "6px",
+                          flexWrap: "wrap",
                         }}
                       >
-                        {t.directions}
-                      </button>
+                        {i === 0 && (
+                          <span
+                            style={{
+                              fontSize: "11px",
+                              fontWeight: 600,
+                              background: "#FFF3E0",
+                              color: "#C47D00",
+                              border: "1px solid #FFD97A",
+                              padding: "3px 8px",
+                              borderRadius: "8px",
+                            }}
+                          >
+                            {t.cheapest}
+                          </span>
+                        )}
+                        {ph.is_independent && (
+                          <span
+                            style={{
+                              fontSize: "11px",
+                              fontWeight: 500,
+                              background: "#EBF6F4",
+                              color: "#2A7A6E",
+                              border: "1px solid #A8D9D0",
+                              padding: "3px 8px",
+                              borderRadius: "8px",
+                            }}
+                          >
+                            {t.independent}
+                          </span>
+                        )}
+                        <div
+                          style={{
+                            fontSize: "14px",
+                            fontWeight: 700,
+                            color: "#1A3A35",
+                          }}
+                        >
+                          {ph.price.toFixed(2)} ₾
+                        </div>
+                        <button
+                          onClick={() =>
+                            window.open(
+                              `https://www.google.com/maps/search/?api=1&query=${ph.lat},${ph.lng}`,
+                              "_blank",
+                            )
+                          }
+                          style={{
+                            background: "#2A7A6E",
+                            color: "#fff",
+                            border: "none",
+                            borderRadius: "8px",
+                            padding: "6px 12px",
+                            fontSize: "12px",
+                            fontWeight: 500,
+                            cursor: "pointer",
+                            flexShrink: 0,
+                          }}
+                        >
+                          {t.directions}
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                ))}
-            </div>
-          ))}
+                  );
+                })}
+              </div>
+            );
+          })}
       </div>
 
       {/* Footer */}
