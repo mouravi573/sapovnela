@@ -11,6 +11,7 @@ const t = {
     subtitle:
       "Upload a CSV file with your medicines and prices. We will match them to our database automatically.",
     formatTitle: "CSV format (first row is header):",
+    downloadTemplate: "⬇ Download template",
     dropTitle: "Drop your CSV here or click to browse",
     dropSub: "Only .csv files accepted",
     issuesFound: (n) => `${n} issue(s) found:`,
@@ -36,6 +37,7 @@ const t = {
     subtitle:
       "ატვირთე CSV ფაილი შენი წამლებით და ფასებით. ავტომატურად შევუსაბამებთ ჩვენს ბაზას.",
     formatTitle: "CSV ფორმატი (პირველი სტრიქონი სათაურია):",
+    downloadTemplate: "⬇ შაბლონის გადმოწერა",
     dropTitle: "ჩააგდე CSV ან დააჭირე დასათვალიერებლად",
     dropSub: "მხოლოდ .csv ფაილები",
     issuesFound: (n) => `${n} პრობლემა აღმოჩნდა:`,
@@ -67,6 +69,17 @@ export default function UploadCSV() {
   const [lang, setLang] = useState("en");
   const tr = t[lang];
   const router = useRouter();
+
+  function downloadTemplate() {
+    const csv = `medicine_name,price,stock_count\nAmoxicillin 500mg,,\nIbuprofen 400mg,,\nParacetamol 500mg,,\nAspirin 100mg,,\nOmeprazole 20mg,,\nMetformin 850mg,,\nAzithromycin 250mg,,\nCetirizine 10mg,,\nVitamin C 500mg,,\nVitamin D3 1000IU,,`;
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "sapovnela-template.csv";
+    a.click();
+    URL.revokeObjectURL(url);
+  }
 
   function parseCSV(text) {
     const lines = text.trim().split("\n");
@@ -353,6 +366,7 @@ export default function UploadCSV() {
                 {tr.subtitle}
               </p>
 
+              {/* Format guide */}
               <div
                 style={{
                   background: "#EBF6F4",
@@ -364,32 +378,54 @@ export default function UploadCSV() {
               >
                 <div
                   style={{
-                    fontSize: "12px",
-                    fontWeight: 600,
-                    color: "#2A7A6E",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
                     marginBottom: "8px",
                   }}
                 >
-                  {tr.formatTitle}
+                  <div
+                    style={{
+                      fontSize: "12px",
+                      fontWeight: 600,
+                      color: "#2A7A6E",
+                    }}
+                  >
+                    {tr.formatTitle}
+                  </div>
+                  <button
+                    onClick={downloadTemplate}
+                    style={{
+                      background: "#2A7A6E",
+                      color: "#fff",
+                      border: "none",
+                      borderRadius: "8px",
+                      padding: "5px 12px",
+                      fontSize: "11px",
+                      fontWeight: 600,
+                      cursor: "pointer",
+                    }}
+                  >
+                    {tr.downloadTemplate}
+                  </button>
                 </div>
-                <code
+                <pre
                   style={{
                     fontSize: "12px",
                     color: "#1A3A35",
-                    display: "block",
                     lineHeight: 1.8,
+                    margin: 0,
+                    fontFamily: "monospace",
                   }}
                 >
-                  medicine_name,price,stock_count
-                  <br />
-                  Amoxicillin 500mg,1.60,50
-                  <br />
-                  Ibuprofen 400mg,0.90,30
-                  <br />
-                  Paracetamol 500mg,0.60,100
-                </code>
+                  {`medicine_name,price,stock_count
+Amoxicillin 500mg,1.60,50
+Ibuprofen 400mg,0.90,30
+Paracetamol 500mg,0.60,100`}
+                </pre>
               </div>
 
+              {/* Drop zone */}
               <div
                 onDragOver={(e) => {
                   e.preventDefault();
