@@ -313,19 +313,20 @@ export default function Dashboard() {
               Your inventory
             </h2>
             <button
-              onClick={() => setShowAdd(!showAdd)}
+              onClick={() => router.push("/portal/upload")}
               style={{
-                background: "#2A7A6E",
-                color: "#fff",
-                border: "none",
+                background: "none",
+                border: "1px solid #2A7A6E",
+                color: "#2A7A6E",
                 borderRadius: "8px",
                 padding: "7px 16px",
                 fontSize: "13px",
                 fontWeight: 600,
                 cursor: "pointer",
+                marginLeft: "8px",
               }}
             >
-              + Add medicine
+              Upload CSV
             </button>
           </div>
 
