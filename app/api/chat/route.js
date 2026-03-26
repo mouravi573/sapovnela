@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 
 export async function POST(request) {
   const { message, context } = await request.json();
-
   const response = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: {
@@ -34,6 +33,7 @@ Current search context: ${context || "No medicine searched yet"}`,
   const data = await response.json();
 
   if (!response.ok) {
+    console.log("Anthropic error:", JSON.stringify(data));
     return NextResponse.json(
       { error: data.error?.message || "AI error" },
       { status: 500 },
