@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { supabase } from "../../lib/supabase";
 
@@ -31,11 +31,9 @@ const pt = {
         desc: "Patients get directions straight to your pharmacy with one tap",
       },
     ],
-    stats: [
-      { val: "2,400+", label: "Daily searches" },
-      { val: "124", label: "Pharmacies listed" },
-      { val: "Free", label: "Forever for independents" },
-    ],
+    statPharmacies: "Registered pharmacies",
+    statMedicines: "Medicines in database",
+    statListings: "Active listings",
     registerTitle: "Register your pharmacy",
     registerSub: "Free listing — takes 2 minutes",
     fields: [
@@ -99,11 +97,9 @@ const pt = {
         desc: "პაციენტები ნახავენ შენი აფთიაქის მდებარეობას ერთი დაწკაპუნებით",
       },
     ],
-    stats: [
-      { val: "2,400+", label: "ყოველდღიური ძიება" },
-      { val: "124", label: "დარეგისტრირებული აფთიაქი" },
-      { val: "უფასო", label: "მუდმივად დამოუკიდებლებისთვის" },
-    ],
+    statPharmacies: "დარეგისტრირებული აფთიაქი",
+    statMedicines: "წამალი ბაზაში",
+    statListings: "აქტიური განცხადება",
     registerTitle: "დაარეგისტრირე შენი აფთიაქი",
     registerSub: "უფასო განთავსება — 2 წუთი გჭირდება",
     fields: [
@@ -167,7 +163,35 @@ export default function PharmacyPortal() {
     email: "",
     password: "",
   });
+  const [liveStats, setLiveStats] = useState({
+    pharmacies: 0,
+    medicines: 0,
+    listings: 0,
+  });
   const t = pt[lang];
+
+  useEffect(() => {
+    async function fetchStats() {
+      const [{ count: pharmacies }, { count: medicines }, { count: listings }] =
+        await Promise.all([
+          supabase
+            .from("pharmacies")
+            .select("*", { count: "exact", head: true }),
+          supabase
+            .from("medicines")
+            .select("*", { count: "exact", head: true }),
+          supabase
+            .from("inventory")
+            .select("*", { count: "exact", head: true }),
+        ]);
+      setLiveStats({
+        pharmacies: pharmacies || 0,
+        medicines: medicines || 0,
+        listings: listings || 0,
+      });
+    }
+    fetchStats();
+  }, []);
 
   function update(field, value) {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -178,17 +202,12 @@ export default function PharmacyPortal() {
       alert("Please fill in all required fields");
       return;
     }
-
     try {
-      // 1. Create auth user
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: form.email,
         password: form.password,
       });
-
       if (authError) throw authError;
-
-      // 2. Save pharmacy details to DB
       const { error: dbError } = await supabase.from("pharmacies").insert({
         name: form.name,
         address: form.address,
@@ -199,9 +218,7 @@ export default function PharmacyPortal() {
         rating: 0,
         user_id: authData.user.id,
       });
-
       if (dbError) throw dbError;
-
       setStep("success");
     } catch (err) {
       alert("Registration failed: " + err.message);
@@ -377,6 +394,7 @@ export default function PharmacyPortal() {
             </div>
           </div>
 
+          {/* Benefit cards */}
           <div
             style={{
               display: "grid",
@@ -421,6 +439,7 @@ export default function PharmacyPortal() {
             ))}
           </div>
 
+          {/* Live stats ribbon */}
           <div
             style={{
               background: "#2A7A6E",
@@ -432,7 +451,11 @@ export default function PharmacyPortal() {
               textAlign: "center",
             }}
           >
-            {t.stats.map((s) => (
+            {[
+              { val: liveStats.pharmacies, label: t.statPharmacies },
+              { val: liveStats.medicines, label: t.statMedicines },
+              { val: liveStats.listings, label: t.statListings },
+            ].map((s) => (
               <div key={s.label}>
                 <div
                   style={{ fontSize: "28px", fontWeight: 700, color: "#fff" }}
