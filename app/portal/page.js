@@ -197,6 +197,7 @@ export default function PharmacyPortal() {
         hours: form.hours,
         is_independent: true,
         rating: 0,
+        user_id: authData.user.id,
       });
 
       if (dbError) throw dbError;

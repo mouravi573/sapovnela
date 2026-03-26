@@ -22,9 +22,7 @@ export default function Dashboard() {
     const { data: pharmacyData } = await supabase
       .from("pharmacies")
       .select("*")
-      .eq("is_independent", true)
-      .order("created_at", { ascending: false })
-      .limit(1)
+      .eq("user_id", user.id)
       .single();
 
     if (pharmacyData) {
