@@ -112,16 +112,88 @@ export default function UploadCSV() {
     return { rows, errs };
   }
 
+  async function aiParseCSV(rawText) {
+    try {
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          message: `You are a pharmacy data parser. Convert this CSV data into a standardized format.
+
+The input CSV may have:
+- Columns in any order
+- Georgian or English headers
+- Misspelled medicine names
+- Different column names (name/სახელი/დასახელება, price/ფასი/cost, quantity/რაოდენობა/stock)
+
+Output ONLY a valid CSV with exactly these headers and nothing else:
+medicine_name,price,stock_count
+
+Rules:
+- medicine_name: the medicine name as close to standard English pharmaceutical naming as possible
+- price: numeric price in GEL, no currency symbols
+- stock_count: numeric quantity, default to 10 if not provided
+- Skip rows where price is empty or zero
+- Do not include any explanation, just the CSV
+
+Input CSV:
+${rawText.substring(0, 3000)}`,
+          context: "",
+        }),
+      });
+      const data = await res.json();
+      const csv = data.reply?.trim();
+      if (!csv || !csv.includes("medicine_name")) {
+        return {
+          error:
+            lang === "en"
+              ? "AI could not read this file format"
+              : "AI-მ ვერ წაიკითხა ეს ფაილი",
+        };
+      }
+      return { csv };
+    } catch {
+      return {
+        error:
+          lang === "en" ? "AI parsing failed" : "AI-ის დამუშავება ვერ მოხერხდა",
+      };
+    }
+  }
+
   function handleFile(file) {
     if (!file || !file.name.endsWith(".csv")) {
       setErrors([tr.wrongFile]);
       return;
     }
     const reader = new FileReader();
-    reader.onload = (e) => {
-      const { rows, errs } = parseCSV(e.target.result);
-      setPreview(rows);
-      setErrors(errs);
+    reader.onload = async (e) => {
+      const text = e.target.result;
+      const firstLine = text.split("\n")[0].toLowerCase();
+      const isOurFormat =
+        firstLine.includes("medicine_name") ||
+        firstLine.includes("წამლის_სახელი");
+
+      if (isOurFormat) {
+        const { rows, errs } = parseCSV(text);
+        setPreview(rows);
+        setErrors(errs);
+      } else {
+        setErrors([
+          lang === "en"
+            ? "🤖 AI is reading your file..."
+            : "🤖 AI კითხულობს შენს ფაილს...",
+        ]);
+        setPreview([]);
+        const normalized = await aiParseCSV(text);
+        if (normalized.error) {
+          setErrors([normalized.error]);
+        } else {
+          setErrors([]);
+          const { rows, errs } = parseCSV(normalized.csv);
+          setPreview(rows);
+          setErrors(errs);
+        }
+      }
     };
     reader.readAsText(file);
   }
