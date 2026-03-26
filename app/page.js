@@ -117,6 +117,9 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
   const [lang, setLang] = useState("en");
+  const [chatMessage, setChatMessage] = useState("");
+  const [chatReply, setChatReply] = useState("");
+  const [chatLoading, setChatLoading] = useState(false);
   const t = translations[lang];
 
   async function handleSearch() {
@@ -131,6 +134,28 @@ export default function Home() {
 
   function handleKeyDown(e) {
     if (e.key === "Enter") handleSearch();
+  }
+
+  async function sendChat() {
+    if (!chatMessage.trim()) return;
+    setChatLoading(true);
+    const context =
+      searched && results.length > 0
+        ? `User searched for "${query}". Found ${Object.keys(grouped).length} medicines.`
+        : "";
+    try {
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: chatMessage, context }),
+      });
+      const data = await res.json();
+      setChatReply(data.reply || "Sorry, I could not answer that.");
+      setChatMessage("");
+    } catch {
+      setChatReply("Sorry, something went wrong.");
+    }
+    setChatLoading(false);
   }
 
   const grouped = results.reduce((acc, item) => {
@@ -401,47 +426,103 @@ export default function Home() {
           border: "1px solid #C8B8ED",
           borderRadius: "12px",
           padding: "14px 16px",
-          display: "flex",
-          gap: "12px",
         }}
       >
         <div
           style={{
-            width: "34px",
-            height: "34px",
-            background: "#7B52C8",
-            borderRadius: "10px",
             display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            fontSize: "17px",
-            flexShrink: 0,
+            gap: "12px",
+            marginBottom: chatReply ? "12px" : "0",
           }}
         >
-          🤖
-        </div>
-        <div>
           <div
             style={{
-              fontSize: "11px",
-              fontWeight: 700,
-              color: "#7B52C8",
-              letterSpacing: "0.6px",
-              textTransform: "uppercase",
-              marginBottom: "4px",
+              width: "34px",
+              height: "34px",
+              background: "#7B52C8",
+              borderRadius: "10px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: "17px",
+              flexShrink: 0,
             }}
           >
-            {t.aiName}
+            🤖
           </div>
-          <p style={{ fontSize: "13px", color: "#3D2070", lineHeight: 1.6 }}>
-            {searched && results.length > 0
-              ? t.aiResult(
-                  Object.keys(grouped).length,
-                  query,
-                  Math.min(...results.map((r) => r.price)).toFixed(2),
-                )
-              : t.aiDefault}
-          </p>
+          <div style={{ flex: 1 }}>
+            <div
+              style={{
+                fontSize: "11px",
+                fontWeight: 700,
+                color: "#7B52C8",
+                letterSpacing: "0.6px",
+                textTransform: "uppercase",
+                marginBottom: "4px",
+              }}
+            >
+              {t.aiName}
+            </div>
+            <p
+              style={{
+                fontSize: "13px",
+                color: "#3D2070",
+                lineHeight: 1.6,
+                marginBottom: "10px",
+              }}
+            >
+              {chatReply ||
+                (searched && results.length > 0
+                  ? t.aiResult(
+                      Object.keys(grouped).length,
+                      query,
+                      Math.min(...results.map((r) => r.price)).toFixed(2),
+                    )
+                  : t.aiDefault)}
+            </p>
+            <div style={{ display: "flex", gap: "8px" }}>
+              <input
+                type="text"
+                value={chatMessage}
+                onChange={(e) => setChatMessage(e.target.value)}
+                onKeyDown={async (e) => {
+                  if (e.key === "Enter") await sendChat();
+                }}
+                placeholder={
+                  lang === "en"
+                    ? "Ask about this medicine..."
+                    : "დასვი კითხვა წამლის შესახებ..."
+                }
+                style={{
+                  flex: 1,
+                  border: "1.5px solid #C8B8ED",
+                  borderRadius: "10px",
+                  padding: "8px 12px",
+                  fontSize: "13px",
+                  outline: "none",
+                  background: "#fff",
+                  color: "#1A3A35",
+                }}
+              />
+              <button
+                onClick={sendChat}
+                disabled={chatLoading}
+                style={{
+                  background: chatLoading ? "#C8B8ED" : "#7B52C8",
+                  color: "#fff",
+                  border: "none",
+                  borderRadius: "10px",
+                  padding: "8px 16px",
+                  fontSize: "13px",
+                  fontWeight: 600,
+                  cursor: chatLoading ? "default" : "pointer",
+                  flexShrink: 0,
+                }}
+              >
+                {chatLoading ? "..." : "Ask →"}
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
