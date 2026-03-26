@@ -32,14 +32,14 @@ const t = {
     invalidPrice: (row, val) => `Row ${row}: invalid price "${val}"`,
   },
   ge: {
-    backDashboard: "← დაფაზე დაბრუნება",
+    backDashboard: "← სამართავ პანელზე დაბრუნება",
     title: "ფასების სიის ატვირთვა",
     subtitle:
       "ატვირთე CSV ფაილი შენი წამლებით და ფასებით. ავტომატურად შევუსაბამებთ ჩვენს ბაზას.",
     formatTitle: "CSV ფორმატი (პირველი სტრიქონი სათაურია):",
     downloadTemplate: "⬇ შაბლონის გადმოწერა",
     dropTitle: "ჩააგდე CSV ან დააჭირე დასათვალიერებლად",
-    dropSub: "მხოლოდ .csv ფაილები",
+    dropSub: "ატვირთეთ მხოლოდ .csv ფაილები",
     issuesFound: (n) => `${n} პრობლემა აღმოჩნდა:`,
     previewTitle: (n) => `გადახედვა — ${n} წამალი მზადაა`,
     uploadBtn: (n) => `${n} წამლის ატვირთვა →`,

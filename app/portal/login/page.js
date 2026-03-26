@@ -22,7 +22,7 @@ const t = {
   ge: {
     portal: "აფთიაქის პორტალი",
     title: "შედი შენს აფთიაქში",
-    subtitle: "მართე შენი ინვენტარი და ფასები",
+    subtitle: "მართე შენი მარაგები და ფასები",
     email: "ელ-ფოსტა",
     password: "პაროლი",
     emailPlaceholder: "your@email.com",
