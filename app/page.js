@@ -155,6 +155,8 @@ export default function Home() {
   const [locating, setLocating] = useState(false);
   const [showMap, setShowMap] = useState(false);
   const t = translations[lang];
+  const [showDistricts, setShowDistricts] = useState(false);
+  const [customDistrict, setCustomDistrict] = useState(null);
 
   async function handleSearch() {
     if (!query.trim()) return;
@@ -394,33 +396,109 @@ export default function Home() {
             }}
           />
           {/* GPS Location badge */}
-          <div
-            onClick={getLocation}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "5px",
-              background: userLocation ? "#2A7A6E" : "#EBF6F4",
-              border: "1px solid #A8D9D0",
-              color: userLocation ? "#fff" : "#2A7A6E",
-              padding: "5px 10px",
-              borderRadius: "12px",
-              fontSize: "12px",
-              fontWeight: 500,
-              cursor: "pointer",
-              flexShrink: 0,
-              transition: "all .2s",
-            }}
-          >
+          <div style={{ position: "relative", flexShrink: 0 }}>
             <div
+              onClick={() => setShowDistricts(!showDistricts)}
               style={{
-                width: "7px",
-                height: "7px",
-                borderRadius: "50%",
-                background: userLocation ? "#fff" : "#2A7A6E",
+                display: "flex",
+                alignItems: "center",
+                gap: "5px",
+                background: userLocation ? "#2A7A6E" : "#EBF6F4",
+                border: "1px solid #A8D9D0",
+                color: userLocation ? "#fff" : "#2A7A6E",
+                padding: "5px 10px",
+                borderRadius: "12px",
+                fontSize: "12px",
+                fontWeight: 500,
+                cursor: "pointer",
+                transition: "all .2s",
               }}
-            ></div>
-            {locating ? t.locating : userLocation ? t.yourLocation : t.location}
+            >
+              <div
+                style={{
+                  width: "7px",
+                  height: "7px",
+                  borderRadius: "50%",
+                  background: userLocation ? "#fff" : "#2A7A6E",
+                }}
+              ></div>
+              {locating
+                ? t.locating
+                : userLocation
+                  ? t.yourLocation
+                  : customDistrict
+                    ? customDistrict
+                    : t.location}
+              <span style={{ fontSize: "10px", marginLeft: "2px" }}>▾</span>
+            </div>
+
+            {showDistricts && (
+              <div
+                style={{
+                  position: "absolute",
+                  top: "36px",
+                  right: 0,
+                  zIndex: 100,
+                  background: "#fff",
+                  border: "1px solid #D0EBE7",
+                  borderRadius: "12px",
+                  padding: "8px",
+                  boxShadow: "0 4px 16px rgba(0,0,0,0.1)",
+                  minWidth: "180px",
+                }}
+              >
+                <div
+                  onClick={() => {
+                    getLocation();
+                    setShowDistricts(false);
+                  }}
+                  style={{
+                    padding: "8px 12px",
+                    fontSize: "13px",
+                    cursor: "pointer",
+                    color: "#2A7A6E",
+                    fontWeight: 600,
+                    borderRadius: "8px",
+                    background: "#EBF6F4",
+                    marginBottom: "6px",
+                  }}
+                >
+                  📍 {lang === "en" ? "Use my GPS" : "GPS-ის გამოყენება"}
+                </div>
+                {[
+                  "Vake",
+                  "Saburtalo",
+                  "Mtatsminda",
+                  "Isani",
+                  "Samgori",
+                  "Didube",
+                  "Nadzaladevi",
+                  "Gldani",
+                  "Chugureti",
+                  "Krtsanisi",
+                ].map((d) => (
+                  <div
+                    key={d}
+                    onClick={() => {
+                      setUserLocation(null);
+                      setCustomDistrict(d);
+                      setShowDistricts(false);
+                    }}
+                    style={{
+                      padding: "7px 12px",
+                      fontSize: "13px",
+                      cursor: "pointer",
+                      color: "#1A3A35",
+                      borderRadius: "8px",
+                      background:
+                        customDistrict === d ? "#EBF6F4" : "transparent",
+                    }}
+                  >
+                    {d}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
           <button
             onClick={handleSearch}
