@@ -221,9 +221,16 @@ export default function Login() {
               color: "#9ABFBB",
             }}
           >
+            <Link
+              href="/portal/reset"
+              style={{ color: "#2A7A6E", fontWeight: 500 }}
+            >
+              Forgot password?
+            </Link>
+            {" · "}
             No account yet?{" "}
             <Link href="/portal" style={{ color: "#2A7A6E", fontWeight: 500 }}>
-              Register your pharmacy →
+              Register →
             </Link>
           </div>
         </div>
