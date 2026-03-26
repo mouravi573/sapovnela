@@ -26,11 +26,13 @@ export default function Dashboard() {
       return;
     }
 
-    const { data: pharmacyData } = await supabase
+    const { data: pharmacyData, error: pharmError } = await supabase
       .from("pharmacies")
       .select("*")
       .eq("user_id", user.id)
-      .single();
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
 
     if (pharmacyData) {
       setPharmacy(pharmacyData);
@@ -76,8 +78,12 @@ export default function Dashboard() {
   }
 
   async function addMedicine() {
-    if (!newMedicine.medicine_id || !newMedicine.price) return;
-    await supabase.from("inventory").insert({
+    if (!newMedicine.medicine_id || !newMedicine.price) {
+      alert("Please select a medicine and enter a price");
+      return;
+    }
+
+    const { data, error } = await supabase.from("inventory").insert({
       pharmacy_id: pharmacy.id,
       medicine_id: newMedicine.medicine_id,
       price: parseFloat(newMedicine.price),
@@ -85,6 +91,12 @@ export default function Dashboard() {
       in_stock: true,
       updated_at: new Date().toISOString(),
     });
+
+    if (error) {
+      alert("Error: " + error.message);
+      return;
+    }
+
     setNewMedicine({ medicine_id: "", price: "", stock_count: 10 });
     setShowAdd(false);
     loadDashboard();
