@@ -4,6 +4,59 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "../../../lib/supabase";
 
+const t = {
+  en: {
+    backDashboard: "← Dashboard",
+    title: "Upload price list",
+    subtitle:
+      "Upload a CSV file with your medicines and prices. We will match them to our database automatically.",
+    formatTitle: "CSV format (first row is header):",
+    dropTitle: "Drop your CSV here or click to browse",
+    dropSub: "Only .csv files accepted",
+    issuesFound: (n) => `${n} issue(s) found:`,
+    previewTitle: (n) => `Preview — ${n} medicines ready`,
+    uploadBtn: (n) => `Upload ${n} medicines →`,
+    uploading: "Uploading...",
+    medicine: "Medicine",
+    price: "Price",
+    stock: "Stock",
+    moreRows: (n) => `...and ${n} more rows`,
+    doneTitle: "Upload complete!",
+    doneMsg: (saved, total) =>
+      `Successfully saved ${saved} medicines to your inventory out of ${total} rows in the CSV.`,
+    viewInventory: "View inventory →",
+    wrongFile: "Please upload a .csv file",
+    missingCols: (row) => `Row ${row}: not enough columns`,
+    missingName: (row) => `Row ${row}: missing medicine name`,
+    invalidPrice: (row, val) => `Row ${row}: invalid price "${val}"`,
+  },
+  ge: {
+    backDashboard: "← დაფაზე დაბრუნება",
+    title: "ფასების სიის ატვირთვა",
+    subtitle:
+      "ატვირთე CSV ფაილი შენი წამლებით და ფასებით. ავტომატურად შევუსაბამებთ ჩვენს ბაზას.",
+    formatTitle: "CSV ფორმატი (პირველი სტრიქონი სათაურია):",
+    dropTitle: "ჩააგდე CSV ან დააჭირე დასათვალიერებლად",
+    dropSub: "მხოლოდ .csv ფაილები",
+    issuesFound: (n) => `${n} პრობლემა აღმოჩნდა:`,
+    previewTitle: (n) => `გადახედვა — ${n} წამალი მზადაა`,
+    uploadBtn: (n) => `${n} წამლის ატვირთვა →`,
+    uploading: "იტვირთება...",
+    medicine: "წამალი",
+    price: "ფასი",
+    stock: "მარაგი",
+    moreRows: (n) => `...და კიდევ ${n} სტრიქონი`,
+    doneTitle: "ატვირთვა დასრულდა!",
+    doneMsg: (saved, total) =>
+      `წარმატებით შეინახა ${saved} წამალი ${total} სტრიქონიდან.`,
+    viewInventory: "ინვენტარის ნახვა →",
+    wrongFile: "გთხოვთ ატვირთოთ .csv ფაილი",
+    missingCols: (row) => `სტრიქონი ${row}: არ არის საკმარისი სვეტები`,
+    missingName: (row) => `სტრიქონი ${row}: წამლის სახელი აკლია`,
+    invalidPrice: (row, val) => `სტრიქონი ${row}: არასწორი ფასი "${val}"`,
+  },
+};
+
 export default function UploadCSV() {
   const [dragging, setDragging] = useState(false);
   const [preview, setPreview] = useState([]);
@@ -11,6 +64,8 @@ export default function UploadCSV() {
   const [uploading, setUploading] = useState(false);
   const [done, setDone] = useState(false);
   const [savedCount, setSavedCount] = useState(0);
+  const [lang, setLang] = useState("en");
+  const tr = t[lang];
   const router = useRouter();
 
   function parseCSV(text) {
@@ -20,18 +75,18 @@ export default function UploadCSV() {
     lines.slice(1).forEach((line, i) => {
       const cols = line.split(",").map((c) => c.trim().replace(/"/g, ""));
       if (cols.length < 2) {
-        errs.push(`Row ${i + 2}: not enough columns`);
+        errs.push(tr.missingCols(i + 2));
         return;
       }
       const [name, priceRaw, stockRaw] = cols;
       const price = parseFloat(priceRaw);
       const stock = parseInt(stockRaw) || 10;
       if (!name) {
-        errs.push(`Row ${i + 2}: missing medicine name`);
+        errs.push(tr.missingName(i + 2));
         return;
       }
       if (isNaN(price) || price <= 0) {
-        errs.push(`Row ${i + 2}: invalid price "${priceRaw}"`);
+        errs.push(tr.invalidPrice(i + 2, priceRaw));
         return;
       }
       rows.push({ name: name.trim(), price, stock, in_stock: true });
@@ -41,7 +96,7 @@ export default function UploadCSV() {
 
   function handleFile(file) {
     if (!file || !file.name.endsWith(".csv")) {
-      setErrors(["Please upload a .csv file"]);
+      setErrors([tr.wrongFile]);
       return;
     }
     const reader = new FileReader();
@@ -57,7 +112,7 @@ export default function UploadCSV() {
     e.preventDefault();
     setDragging(false);
     handleFile(e.dataTransfer.files[0]);
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handleUpload() {
     if (preview.length === 0) return;
@@ -80,7 +135,11 @@ export default function UploadCSV() {
       .maybeSingle();
 
     if (!pharmacy) {
-      setErrors(["Pharmacy not found. Please register first."]);
+      setErrors([
+        lang === "en"
+          ? "Pharmacy not found. Please register first."
+          : "აფთიაქი ვერ მოიძებნა. გთხოვთ ჯერ დარეგისტრირდეთ.",
+      ]);
       setUploading(false);
       return;
     }
@@ -179,8 +238,37 @@ export default function UploadCSV() {
               textDecoration: "none",
             }}
           >
-            ← Dashboard
+            {tr.backDashboard}
           </Link>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              background: "#EBF6F4",
+              borderRadius: "20px",
+              padding: "3px",
+              gap: "2px",
+            }}
+          >
+            {["en", "ge"].map((l) => (
+              <button
+                key={l}
+                onClick={() => setLang(l)}
+                style={{
+                  fontSize: "12px",
+                  fontWeight: lang === l ? 600 : 400,
+                  padding: "4px 12px",
+                  borderRadius: "16px",
+                  border: "none",
+                  cursor: "pointer",
+                  background: lang === l ? "#2A7A6E" : "transparent",
+                  color: lang === l ? "#fff" : "#6BA89E",
+                }}
+              >
+                {l === "en" ? "EN" : "ქარ"}
+              </button>
+            ))}
+          </div>
         </div>
       </nav>
 
@@ -206,7 +294,7 @@ export default function UploadCSV() {
                 marginBottom: "10px",
               }}
             >
-              Upload complete!
+              {tr.doneTitle}
             </h2>
             <p
               style={{
@@ -216,8 +304,7 @@ export default function UploadCSV() {
                 lineHeight: 1.6,
               }}
             >
-              Successfully saved <strong>{savedCount}</strong> medicines to your
-              inventory out of {preview.length} rows in the CSV.
+              {tr.doneMsg(savedCount, preview.length)}
             </p>
             <Link
               href="/portal/dashboard"
@@ -232,7 +319,7 @@ export default function UploadCSV() {
                 fontWeight: 600,
               }}
             >
-              View inventory →
+              {tr.viewInventory}
             </Link>
           </div>
         ) : (
@@ -254,7 +341,7 @@ export default function UploadCSV() {
                   marginBottom: "6px",
                 }}
               >
-                Upload price list
+                {tr.title}
               </h2>
               <p
                 style={{
@@ -263,11 +350,9 @@ export default function UploadCSV() {
                   marginBottom: "20px",
                 }}
               >
-                Upload a CSV file with your medicines and prices. We will match
-                them to our database automatically.
+                {tr.subtitle}
               </p>
 
-              {/* Format guide */}
               <div
                 style={{
                   background: "#EBF6F4",
@@ -285,7 +370,7 @@ export default function UploadCSV() {
                     marginBottom: "8px",
                   }}
                 >
-                  CSV format (first row is header):
+                  {tr.formatTitle}
                 </div>
                 <code
                   style={{
@@ -305,7 +390,6 @@ export default function UploadCSV() {
                 </code>
               </div>
 
-              {/* Drop zone */}
               <div
                 onDragOver={(e) => {
                   e.preventDefault();
@@ -333,10 +417,10 @@ export default function UploadCSV() {
                     marginBottom: "4px",
                   }}
                 >
-                  Drop your CSV here or click to browse
+                  {tr.dropTitle}
                 </div>
                 <div style={{ fontSize: "12px", color: "#9ABFBB" }}>
-                  Only .csv files accepted
+                  {tr.dropSub}
                 </div>
                 <input
                   id="csv-input"
@@ -348,7 +432,6 @@ export default function UploadCSV() {
               </div>
             </div>
 
-            {/* Errors */}
             {errors.length > 0 && (
               <div
                 style={{
@@ -367,7 +450,7 @@ export default function UploadCSV() {
                     marginBottom: "6px",
                   }}
                 >
-                  ⚠️ {errors.length} issue(s) found:
+                  ⚠️ {tr.issuesFound(errors.length)}
                 </div>
                 {errors.map((e, i) => (
                   <div
@@ -384,7 +467,6 @@ export default function UploadCSV() {
               </div>
             )}
 
-            {/* Preview */}
             {preview.length > 0 && (
               <div
                 style={{
@@ -409,7 +491,7 @@ export default function UploadCSV() {
                       color: "#1A3A35",
                     }}
                   >
-                    Preview — {preview.length} medicines ready
+                    {tr.previewTitle(preview.length)}
                   </h3>
                   <button
                     onClick={handleUpload}
@@ -425,12 +507,9 @@ export default function UploadCSV() {
                       cursor: uploading ? "default" : "pointer",
                     }}
                   >
-                    {uploading
-                      ? "Uploading..."
-                      : `Upload ${preview.length} medicines →`}
+                    {uploading ? tr.uploading : tr.uploadBtn(preview.length)}
                   </button>
                 </div>
-
                 <table
                   style={{
                     width: "100%",
@@ -440,7 +519,7 @@ export default function UploadCSV() {
                 >
                   <thead>
                     <tr>
-                      {["Medicine", "Price", "Stock"].map((h) => (
+                      {[tr.medicine, tr.price, tr.stock].map((h) => (
                         <th
                           key={h}
                           style={{
@@ -495,7 +574,7 @@ export default function UploadCSV() {
                       textAlign: "center",
                     }}
                   >
-                    ...and {preview.length - 10} more rows
+                    {tr.moreRows(preview.length - 10)}
                   </div>
                 )}
               </div>

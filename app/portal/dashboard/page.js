@@ -4,6 +4,71 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "../../../lib/supabase";
 
+const t = {
+  en: {
+    portal: "Dashboard",
+    signOut: "Sign out",
+    loading: "Loading your dashboard...",
+    inStock: "Medicines in stock",
+    totalListings: "Total listings",
+    district: "District",
+    aiTitle: "AI Insight",
+    aiEmpty:
+      "Add your first medicine to start appearing in patient searches. Patients in your area are actively searching for medicines right now.",
+    aiHasStock: (count) =>
+      `You have ${count} medicines in stock. Make sure your prices are competitive to appear at the top of search results.`,
+    inventory: "Your inventory",
+    addMedicine: "+ Add medicine",
+    uploadCSV: "Upload CSV",
+    noMedicines: "Add your first medicines",
+    noMedicinesDesc: "Choose how you want to add your inventory",
+    addManually: "Add manually",
+    addManuallyDesc: "Add medicines one by one from our database",
+    uploadDesc: "Upload your full price list as a spreadsheet",
+    medicine: "Medicine",
+    price: "Price (₾)",
+    stockStatus: "In stock",
+    lastUpdated: "Last updated",
+    inStockBtn: "In stock",
+    outOfStockBtn: "Out of stock",
+    selectMedicine: "Select medicine...",
+    stockCount: "Stock count",
+    add: "Add →",
+    cancel: "Cancel",
+  },
+  ge: {
+    portal: "დაფა",
+    signOut: "გასვლა",
+    loading: "იტვირთება შენი დაფა...",
+    inStock: "წამალი მარაგშია",
+    totalListings: "სულ განცხადება",
+    district: "რაიონი",
+    aiTitle: "AI რჩევა",
+    aiEmpty:
+      "დაამატე პირველი წამალი და გამოჩნდები ძიების შედეგებში. შენს არეალში ახლა ბევრი პაციენტი ეძებს წამლებს.",
+    aiHasStock: (count) =>
+      `შენ ${count} წამალი გაქვს მარაგში. დარწმუნდი, რომ შენი ფასები კონკურენტუნარიანია.`,
+    inventory: "შენი ინვენტარი",
+    addMedicine: "+ წამლის დამატება",
+    uploadCSV: "CSV-ის ატვირთვა",
+    noMedicines: "დაამატე პირველი წამლები",
+    noMedicinesDesc: "აირჩიე როგორ გინდა ინვენტარის დამატება",
+    addManually: "ხელით დამატება",
+    addManuallyDesc: "დაამატე წამლები ერთ-ერთად ჩვენი ბაზიდან",
+    uploadDesc: "ატვირთე შენი სრული ფასების სია ცხრილის სახით",
+    medicine: "წამალი",
+    price: "ფასი (₾)",
+    stockStatus: "მარაგშია",
+    lastUpdated: "ბოლო განახლება",
+    inStockBtn: "მარაგშია",
+    outOfStockBtn: "არ არის მარაგში",
+    selectMedicine: "აირჩიე წამალი...",
+    stockCount: "მარაგის რაოდენობა",
+    add: "დამატება →",
+    cancel: "გაუქმება",
+  },
+};
+
 export default function Dashboard() {
   const [pharmacy, setPharmacy] = useState(null);
   const [inventory, setInventory] = useState([]);
@@ -15,6 +80,8 @@ export default function Dashboard() {
     price: "",
     stock_count: 10,
   });
+  const [lang, setLang] = useState("en");
+  const tr = t[lang];
   const router = useRouter();
 
   const loadDashboard = useCallback(async () => {
@@ -26,7 +93,7 @@ export default function Dashboard() {
       return;
     }
 
-    const { data: pharmacyData, error: pharmError } = await supabase
+    const { data: pharmacyData } = await supabase
       .from("pharmacies")
       .select("*")
       .eq("user_id", user.id)
@@ -48,7 +115,6 @@ export default function Dashboard() {
       .select("*")
       .order("name");
     setMedicines(meds || []);
-
     setLoading(false);
   }, [router]);
 
@@ -79,11 +145,14 @@ export default function Dashboard() {
 
   async function addMedicine() {
     if (!newMedicine.medicine_id || !newMedicine.price) {
-      alert("Please select a medicine and enter a price");
+      alert(
+        lang === "en"
+          ? "Please select a medicine and enter a price"
+          : "გთხოვთ აირჩიოთ წამალი და შეიყვანოთ ფასი",
+      );
       return;
     }
-
-    const { data, error } = await supabase.from("inventory").insert({
+    const { error } = await supabase.from("inventory").insert({
       pharmacy_id: pharmacy.id,
       medicine_id: newMedicine.medicine_id,
       price: parseFloat(newMedicine.price),
@@ -91,12 +160,10 @@ export default function Dashboard() {
       in_stock: true,
       updated_at: new Date().toISOString(),
     });
-
     if (error) {
       alert("Error: " + error.message);
       return;
     }
-
     setNewMedicine({ medicine_id: "", price: "", stock_count: 10 });
     setShowAdd(false);
     loadDashboard();
@@ -119,9 +186,7 @@ export default function Dashboard() {
           fontFamily: "system-ui, sans-serif",
         }}
       >
-        <div style={{ fontSize: "14px", color: "#9ABFBB" }}>
-          Loading your dashboard...
-        </div>
+        <div style={{ fontSize: "14px", color: "#9ABFBB" }}>{tr.loading}</div>
       </div>
     );
 
@@ -133,7 +198,6 @@ export default function Dashboard() {
         fontFamily: "system-ui, sans-serif",
       }}
     >
-      {/* Navbar */}
       <nav
         style={{
           background: "#fff",
@@ -183,8 +247,37 @@ export default function Dashboard() {
         </Link>
         <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
           <span style={{ fontSize: "13px", color: "#6BA89E" }}>
-            {pharmacy?.name || "Dashboard"}
+            {pharmacy?.name || tr.portal}
           </span>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              background: "#EBF6F4",
+              borderRadius: "20px",
+              padding: "3px",
+              gap: "2px",
+            }}
+          >
+            {["en", "ge"].map((l) => (
+              <button
+                key={l}
+                onClick={() => setLang(l)}
+                style={{
+                  fontSize: "12px",
+                  fontWeight: lang === l ? 600 : 400,
+                  padding: "4px 12px",
+                  borderRadius: "16px",
+                  border: "none",
+                  cursor: "pointer",
+                  background: lang === l ? "#2A7A6E" : "transparent",
+                  color: lang === l ? "#fff" : "#6BA89E",
+                }}
+              >
+                {l === "en" ? "EN" : "ქარ"}
+              </button>
+            ))}
+          </div>
           <button
             onClick={handleLogout}
             style={{
@@ -197,17 +290,16 @@ export default function Dashboard() {
               cursor: "pointer",
             }}
           >
-            Sign out
+            {tr.signOut}
           </button>
         </div>
       </nav>
 
       <div style={{ padding: "28px 40px" }}>
-        {/* Stats */}
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "repeat(3,1fr)",
+            gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
             gap: "12px",
             marginBottom: "28px",
           }}
@@ -215,10 +307,10 @@ export default function Dashboard() {
           {[
             {
               val: inventory.filter((i) => i.in_stock).length,
-              label: "Medicines in stock",
+              label: tr.inStock,
             },
-            { val: inventory.length, label: "Total listings" },
-            { val: pharmacy?.district || "—", label: "District" },
+            { val: inventory.length, label: tr.totalListings },
+            { val: pharmacy?.district || "—", label: tr.district },
           ].map((s) => (
             <div
               key={s.label}
@@ -244,7 +336,6 @@ export default function Dashboard() {
           ))}
         </div>
 
-        {/* AI Insight */}
         <div
           style={{
             background: "#F0EBF8",
@@ -282,17 +373,16 @@ export default function Dashboard() {
                 marginBottom: "4px",
               }}
             >
-              AI Insight
+              {tr.aiTitle}
             </div>
             <p style={{ fontSize: "13px", color: "#3D2070", lineHeight: 1.6 }}>
               {inventory.length === 0
-                ? "Add your first medicine to start appearing in patient searches. Patients in your area are actively searching for medicines right now."
-                : `You have ${inventory.filter((i) => i.in_stock).length} medicines in stock. Make sure your prices are competitive to appear at the top of search results.`}
+                ? tr.aiEmpty
+                : tr.aiHasStock(inventory.filter((i) => i.in_stock).length)}
             </p>
           </div>
         </div>
 
-        {/* Inventory */}
         <div
           style={{
             background: "#fff",
@@ -307,30 +397,47 @@ export default function Dashboard() {
               alignItems: "center",
               justifyContent: "space-between",
               marginBottom: "16px",
+              flexWrap: "wrap",
+              gap: "8px",
             }}
           >
             <h2 style={{ fontSize: "16px", fontWeight: 700, color: "#1A3A35" }}>
-              Your inventory
+              {tr.inventory}
             </h2>
-            <button
-              onClick={() => router.push("/portal/upload")}
-              style={{
-                background: "none",
-                border: "1px solid #2A7A6E",
-                color: "#2A7A6E",
-                borderRadius: "8px",
-                padding: "7px 16px",
-                fontSize: "13px",
-                fontWeight: 600,
-                cursor: "pointer",
-                marginLeft: "8px",
-              }}
-            >
-              Upload CSV
-            </button>
+            <div style={{ display: "flex", gap: "8px" }}>
+              <button
+                onClick={() => setShowAdd(!showAdd)}
+                style={{
+                  background: "#2A7A6E",
+                  color: "#fff",
+                  border: "none",
+                  borderRadius: "8px",
+                  padding: "7px 16px",
+                  fontSize: "13px",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                }}
+              >
+                {tr.addMedicine}
+              </button>
+              <button
+                onClick={() => router.push("/portal/upload")}
+                style={{
+                  background: "none",
+                  border: "1px solid #2A7A6E",
+                  color: "#2A7A6E",
+                  borderRadius: "8px",
+                  padding: "7px 16px",
+                  fontSize: "13px",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                }}
+              >
+                {tr.uploadCSV}
+              </button>
+            </div>
           </div>
 
-          {/* Add medicine form */}
           {showAdd && (
             <div
               style={{
@@ -355,7 +462,7 @@ export default function Dashboard() {
                     marginBottom: "5px",
                   }}
                 >
-                  Medicine
+                  {tr.medicine}
                 </label>
                 <select
                   value={newMedicine.medicine_id}
@@ -373,9 +480,10 @@ export default function Dashboard() {
                     fontSize: "13px",
                     outline: "none",
                     background: "#fff",
+                    color: "#1A3A35",
                   }}
                 >
-                  <option value="">Select medicine...</option>
+                  <option value="">{tr.selectMedicine}</option>
                   {medicines.map((m) => (
                     <option key={m.id} value={m.id}>
                       {m.name} — {m.dosage}
@@ -393,7 +501,7 @@ export default function Dashboard() {
                     marginBottom: "5px",
                   }}
                 >
-                  Price (₾)
+                  {tr.price}
                 </label>
                 <input
                   type="number"
@@ -413,6 +521,7 @@ export default function Dashboard() {
                     fontSize: "13px",
                     outline: "none",
                     background: "#fff",
+                    color: "#1A3A35",
                     boxSizing: "border-box",
                   }}
                 />
@@ -427,7 +536,7 @@ export default function Dashboard() {
                     marginBottom: "5px",
                   }}
                 >
-                  Stock count
+                  {tr.stockCount}
                 </label>
                 <input
                   type="number"
@@ -447,6 +556,7 @@ export default function Dashboard() {
                     fontSize: "13px",
                     outline: "none",
                     background: "#fff",
+                    color: "#1A3A35",
                     boxSizing: "border-box",
                   }}
                 />
@@ -465,7 +575,7 @@ export default function Dashboard() {
                   flexShrink: 0,
                 }}
               >
-                Add →
+                {tr.add}
               </button>
               <button
                 onClick={() => setShowAdd(false)}
@@ -480,7 +590,7 @@ export default function Dashboard() {
                   flexShrink: 0,
                 }}
               >
-                Cancel
+                {tr.cancel}
               </button>
             </div>
           )}
@@ -496,7 +606,7 @@ export default function Dashboard() {
                   marginBottom: "6px",
                 }}
               >
-                Add your first medicines
+                {tr.noMedicines}
               </div>
               <div
                 style={{
@@ -505,7 +615,7 @@ export default function Dashboard() {
                   marginBottom: "24px",
                 }}
               >
-                Choose how you want to add your inventory
+                {tr.noMedicinesDesc}
               </div>
               <div
                 style={{
@@ -524,7 +634,6 @@ export default function Dashboard() {
                     padding: "24px",
                     cursor: "pointer",
                     width: "180px",
-                    transition: "all .2s",
                   }}
                 >
                   <div style={{ fontSize: "32px", marginBottom: "10px" }}>
@@ -538,7 +647,7 @@ export default function Dashboard() {
                       marginBottom: "6px",
                     }}
                   >
-                    Add manually
+                    {tr.addManually}
                   </div>
                   <div
                     style={{
@@ -547,7 +656,7 @@ export default function Dashboard() {
                       lineHeight: 1.5,
                     }}
                   >
-                    Add medicines one by one from our database
+                    {tr.addManuallyDesc}
                   </div>
                 </div>
                 <div
@@ -559,7 +668,6 @@ export default function Dashboard() {
                     padding: "24px",
                     cursor: "pointer",
                     width: "180px",
-                    transition: "all .2s",
                   }}
                 >
                   <div style={{ fontSize: "32px", marginBottom: "10px" }}>
@@ -573,7 +681,7 @@ export default function Dashboard() {
                       marginBottom: "6px",
                     }}
                   >
-                    Upload CSV
+                    {tr.uploadCSV}
                   </div>
                   <div
                     style={{
@@ -582,7 +690,7 @@ export default function Dashboard() {
                       lineHeight: 1.5,
                     }}
                   >
-                    Upload your full price list as a spreadsheet
+                    {tr.uploadDesc}
                   </div>
                 </div>
               </div>
@@ -591,7 +699,7 @@ export default function Dashboard() {
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
               <thead>
                 <tr>
-                  {["Medicine", "Price (₾)", "In stock", "Last updated"].map(
+                  {[tr.medicine, tr.price, tr.stockStatus, tr.lastUpdated].map(
                     (h) => (
                       <th
                         key={h}
@@ -650,6 +758,7 @@ export default function Dashboard() {
                           fontSize: "13px",
                           outline: "none",
                           color: "#1A3A35",
+                          background: "#fff",
                         }}
                       />
                     </td>
@@ -667,7 +776,7 @@ export default function Dashboard() {
                           cursor: "pointer",
                         }}
                       >
-                        {item.in_stock ? "In stock" : "Out of stock"}
+                        {item.in_stock ? tr.inStockBtn : tr.outOfStockBtn}
                       </button>
                     </td>
                     <td

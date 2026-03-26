@@ -4,29 +4,62 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "../../../lib/supabase";
 
+const t = {
+  en: {
+    portal: "Set New Password",
+    title: "Set new password",
+    subtitle: "Choose a strong password for your pharmacy account",
+    newPassword: "New password",
+    confirmPassword: "Confirm password",
+    newPlaceholder: "Min 8 characters",
+    confirmPlaceholder: "Repeat your password",
+    submit: "Update password →",
+    submitting: "Updating...",
+    noMatch: "Passwords do not match",
+    tooShort: "Password must be at least 8 characters",
+    doneTitle: "Password updated!",
+    doneMsg: "Your password has been changed. Redirecting you to login...",
+  },
+  ge: {
+    portal: "ახალი პაროლის დაყენება",
+    title: "ახალი პაროლის დაყენება",
+    subtitle: "აირჩიე ძლიერი პაროლი შენი აფთიაქის ანგარიშისთვის",
+    newPassword: "ახალი პაროლი",
+    confirmPassword: "გაიმეორე პაროლი",
+    newPlaceholder: "მინ. 8 სიმბოლო",
+    confirmPlaceholder: "გაიმეორე პაროლი",
+    submit: "პაროლის განახლება →",
+    submitting: "ინახება...",
+    noMatch: "პაროლები არ ემთხვევა",
+    tooShort: "პაროლი მინიმუმ 8 სიმბოლო უნდა იყოს",
+    doneTitle: "პაროლი განახლდა!",
+    doneMsg: "შენი პაროლი შეიცვალა. გადაგამისამართებთ შესვლის გვერდზე...",
+  },
+};
+
 export default function UpdatePassword() {
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [done, setDone] = useState(false);
+  const [lang, setLang] = useState("en");
+  const tr = t[lang];
   const router = useRouter();
 
   async function handleUpdate() {
     if (!password || !confirm) return;
     if (password !== confirm) {
-      setError("Passwords do not match");
+      setError(tr.noMatch);
       return;
     }
     if (password.length < 8) {
-      setError("Password must be at least 8 characters");
+      setError(tr.tooShort);
       return;
     }
     setLoading(true);
     setError("");
-
     const { error } = await supabase.auth.updateUser({ password });
-
     if (error) {
       setError(error.message);
       setLoading(false);
@@ -91,9 +124,40 @@ export default function UpdatePassword() {
             საპოვ<span style={{ color: "#2A7A6E" }}>ნელა</span>
           </span>
         </Link>
-        <span style={{ fontSize: "13px", color: "#6BA89E" }}>
-          Set New Password
-        </span>
+        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+          <span style={{ fontSize: "13px", color: "#6BA89E" }}>
+            {tr.portal}
+          </span>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              background: "#EBF6F4",
+              borderRadius: "20px",
+              padding: "3px",
+              gap: "2px",
+            }}
+          >
+            {["en", "ge"].map((l) => (
+              <button
+                key={l}
+                onClick={() => setLang(l)}
+                style={{
+                  fontSize: "12px",
+                  fontWeight: lang === l ? 600 : 400,
+                  padding: "4px 12px",
+                  borderRadius: "16px",
+                  border: "none",
+                  cursor: "pointer",
+                  background: lang === l ? "#2A7A6E" : "transparent",
+                  color: lang === l ? "#fff" : "#6BA89E",
+                }}
+              >
+                {l === "en" ? "EN" : "ქარ"}
+              </button>
+            ))}
+          </div>
+        </div>
       </nav>
 
       <div
@@ -118,10 +182,10 @@ export default function UpdatePassword() {
                 marginBottom: "10px",
               }}
             >
-              Password updated!
+              {tr.doneTitle}
             </h2>
             <p style={{ fontSize: "14px", color: "#7AABA5", lineHeight: 1.6 }}>
-              Your password has been changed. Redirecting you to login...
+              {tr.doneMsg}
             </p>
           </div>
         ) : (
@@ -141,7 +205,7 @@ export default function UpdatePassword() {
                 marginBottom: "6px",
               }}
             >
-              Set new password
+              {tr.title}
             </h2>
             <p
               style={{
@@ -150,7 +214,7 @@ export default function UpdatePassword() {
                 marginBottom: "28px",
               }}
             >
-              Choose a strong password for your pharmacy account
+              {tr.subtitle}
             </p>
 
             {error && (
@@ -179,13 +243,13 @@ export default function UpdatePassword() {
                   marginBottom: "6px",
                 }}
               >
-                New password
+                {tr.newPassword}
               </label>
               <input
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="Min 8 characters"
+                placeholder={tr.newPlaceholder}
                 style={{
                   width: "100%",
                   border: "1.5px solid #D0EBE7",
@@ -210,14 +274,14 @@ export default function UpdatePassword() {
                   marginBottom: "6px",
                 }}
               >
-                Confirm password
+                {tr.confirmPassword}
               </label>
               <input
                 type="password"
                 value={confirm}
                 onChange={(e) => setConfirm(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleUpdate()}
-                placeholder="Repeat your password"
+                placeholder={tr.confirmPlaceholder}
                 style={{
                   width: "100%",
                   border: "1.5px solid #D0EBE7",
@@ -247,7 +311,7 @@ export default function UpdatePassword() {
                 cursor: loading ? "default" : "pointer",
               }}
             >
-              {loading ? "Updating..." : "Update password →"}
+              {loading ? tr.submitting : tr.submit}
             </button>
           </div>
         )}

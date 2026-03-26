@@ -3,21 +3,52 @@ import { useState } from "react";
 import Link from "next/link";
 import { supabase } from "../../../lib/supabase";
 
+const t = {
+  en: {
+    portal: "Password Reset",
+    title: "Reset your password",
+    subtitle: "Enter your email and we will send you a reset link",
+    email: "Email address",
+    placeholder: "your@email.com",
+    submit: "Send reset link →",
+    submitting: "Sending...",
+    back: "← Back to login",
+    sentTitle: "Check your email",
+    sentMsg: (email) =>
+      `We sent a password reset link to ${email}. Click the link in the email to set a new password.`,
+    backLogin: "Back to login →",
+  },
+  ge: {
+    portal: "პაროლის აღდგენა",
+    title: "პაროლის აღდგენა",
+    subtitle: "შეიყვანე ელ-ფოსტა და გამოგიგზავნით აღდგენის ბმულს",
+    email: "ელ-ფოსტა",
+    placeholder: "your@email.com",
+    submit: "გამოგზავნა →",
+    submitting: "იგზავნება...",
+    back: "← შესვლაზე დაბრუნება",
+    sentTitle: "შეამოწმე ელ-ფოსტა",
+    sentMsg: (email) =>
+      `გამოვუგზავნეთ პაროლის აღდგენის ბმული ${email}-ზე. დააჭირე ბმულს ახალი პაროლის დასაყენებლად.`,
+    backLogin: "შესვლაზე დაბრუნება →",
+  },
+};
+
 export default function ResetPassword() {
   const [email, setEmail] = useState("");
   const [sent, setSent] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [lang, setLang] = useState("en");
+  const tr = t[lang];
 
   async function handleReset() {
     if (!email) return;
     setLoading(true);
     setError("");
-
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: "https://sapovnela.com/portal/update-password",
     });
-
     if (error) {
       setError(error.message);
       setLoading(false);
@@ -81,9 +112,40 @@ export default function ResetPassword() {
             საპოვ<span style={{ color: "#2A7A6E" }}>ნელა</span>
           </span>
         </Link>
-        <span style={{ fontSize: "13px", color: "#6BA89E" }}>
-          Password Reset
-        </span>
+        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+          <span style={{ fontSize: "13px", color: "#6BA89E" }}>
+            {tr.portal}
+          </span>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              background: "#EBF6F4",
+              borderRadius: "20px",
+              padding: "3px",
+              gap: "2px",
+            }}
+          >
+            {["en", "ge"].map((l) => (
+              <button
+                key={l}
+                onClick={() => setLang(l)}
+                style={{
+                  fontSize: "12px",
+                  fontWeight: lang === l ? 600 : 400,
+                  padding: "4px 12px",
+                  borderRadius: "16px",
+                  border: "none",
+                  cursor: "pointer",
+                  background: lang === l ? "#2A7A6E" : "transparent",
+                  color: lang === l ? "#fff" : "#6BA89E",
+                }}
+              >
+                {l === "en" ? "EN" : "ქარ"}
+              </button>
+            ))}
+          </div>
+        </div>
       </nav>
 
       <div
@@ -108,7 +170,7 @@ export default function ResetPassword() {
                 marginBottom: "10px",
               }}
             >
-              Check your email
+              {tr.sentTitle}
             </h2>
             <p
               style={{
@@ -118,8 +180,7 @@ export default function ResetPassword() {
                 lineHeight: 1.6,
               }}
             >
-              We sent a password reset link to <strong>{email}</strong>. Click
-              the link in the email to set a new password.
+              {tr.sentMsg(email)}
             </p>
             <Link
               href="/portal/login"
@@ -134,7 +195,7 @@ export default function ResetPassword() {
                 fontWeight: 600,
               }}
             >
-              Back to login →
+              {tr.backLogin}
             </Link>
           </div>
         ) : (
@@ -154,7 +215,7 @@ export default function ResetPassword() {
                 marginBottom: "6px",
               }}
             >
-              Reset your password
+              {tr.title}
             </h2>
             <p
               style={{
@@ -163,7 +224,7 @@ export default function ResetPassword() {
                 marginBottom: "28px",
               }}
             >
-              Enter your email and we will send you a reset link
+              {tr.subtitle}
             </p>
 
             {error && (
@@ -192,14 +253,14 @@ export default function ResetPassword() {
                   marginBottom: "6px",
                 }}
               >
-                Email address
+                {tr.email}
               </label>
               <input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleReset()}
-                placeholder="your@email.com"
+                placeholder={tr.placeholder}
                 style={{
                   width: "100%",
                   border: "1.5px solid #D0EBE7",
@@ -229,7 +290,7 @@ export default function ResetPassword() {
                 cursor: loading ? "default" : "pointer",
               }}
             >
-              {loading ? "Sending..." : "Send reset link →"}
+              {loading ? tr.submitting : tr.submit}
             </button>
 
             <div
@@ -237,14 +298,13 @@ export default function ResetPassword() {
                 textAlign: "center",
                 marginTop: "16px",
                 fontSize: "13px",
-                color: "#9ABFBB",
               }}
             >
               <Link
                 href="/portal/login"
                 style={{ color: "#2A7A6E", fontWeight: 500 }}
               >
-                ← Back to login
+                {tr.back}
               </Link>
             </div>
           </div>

@@ -4,23 +4,54 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "../../../lib/supabase";
 
+const t = {
+  en: {
+    portal: "Pharmacy Portal",
+    title: "Sign in to your pharmacy",
+    subtitle: "Manage your inventory and prices",
+    email: "Email address",
+    password: "Password",
+    emailPlaceholder: "your@email.com",
+    passwordPlaceholder: "Your password",
+    submit: "Sign in →",
+    submitting: "Signing in...",
+    forgot: "Forgot password?",
+    noAccount: "No account yet?",
+    register: "Register →",
+  },
+  ge: {
+    portal: "აფთიაქის პორტალი",
+    title: "შედი შენს აფთიაქში",
+    subtitle: "მართე შენი ინვენტარი და ფასები",
+    email: "ელ-ფოსტა",
+    password: "პაროლი",
+    emailPlaceholder: "your@email.com",
+    passwordPlaceholder: "შენი პაროლი",
+    submit: "შესვლა →",
+    submitting: "შესვლა...",
+    forgot: "დაგავიწყდა პაროლი?",
+    noAccount: "ჯერ არ გაქვს ანგარიში?",
+    register: "რეგისტრაცია →",
+  },
+};
+
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [lang, setLang] = useState("en");
+  const tr = t[lang];
   const router = useRouter();
 
   async function handleLogin() {
     if (!email || !password) return;
     setLoading(true);
     setError("");
-
     const { error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
-
     if (error) {
       setError(error.message);
       setLoading(false);
@@ -84,9 +115,40 @@ export default function Login() {
             საპოვ<span style={{ color: "#2A7A6E" }}>ნელა</span>
           </span>
         </Link>
-        <span style={{ fontSize: "13px", color: "#6BA89E" }}>
-          Pharmacy Portal
-        </span>
+        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+          <span style={{ fontSize: "13px", color: "#6BA89E" }}>
+            {tr.portal}
+          </span>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              background: "#EBF6F4",
+              borderRadius: "20px",
+              padding: "3px",
+              gap: "2px",
+            }}
+          >
+            {["en", "ge"].map((l) => (
+              <button
+                key={l}
+                onClick={() => setLang(l)}
+                style={{
+                  fontSize: "12px",
+                  fontWeight: lang === l ? 600 : 400,
+                  padding: "4px 12px",
+                  borderRadius: "16px",
+                  border: "none",
+                  cursor: "pointer",
+                  background: lang === l ? "#2A7A6E" : "transparent",
+                  color: lang === l ? "#fff" : "#6BA89E",
+                }}
+              >
+                {l === "en" ? "EN" : "ქარ"}
+              </button>
+            ))}
+          </div>
+        </div>
       </nav>
 
       <div
@@ -108,12 +170,12 @@ export default function Login() {
               marginBottom: "6px",
             }}
           >
-            Sign in to your pharmacy
+            {tr.title}
           </h2>
           <p
             style={{ fontSize: "13px", color: "#7AABA5", marginBottom: "28px" }}
           >
-            Manage your inventory and prices
+            {tr.subtitle}
           </p>
 
           {error && (
@@ -142,13 +204,13 @@ export default function Login() {
                 marginBottom: "6px",
               }}
             >
-              Email address
+              {tr.email}
             </label>
             <input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="your@email.com"
+              placeholder={tr.emailPlaceholder}
               style={{
                 width: "100%",
                 border: "1.5px solid #D0EBE7",
@@ -173,14 +235,14 @@ export default function Login() {
                 marginBottom: "6px",
               }}
             >
-              Password
+              {tr.password}
             </label>
             <input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleLogin()}
-              placeholder="Your password"
+              placeholder={tr.passwordPlaceholder}
               style={{
                 width: "100%",
                 border: "1.5px solid #D0EBE7",
@@ -210,7 +272,7 @@ export default function Login() {
               cursor: loading ? "default" : "pointer",
             }}
           >
-            {loading ? "Signing in..." : "Sign in →"}
+            {loading ? tr.submitting : tr.submit}
           </button>
 
           <div
@@ -225,12 +287,12 @@ export default function Login() {
               href="/portal/reset"
               style={{ color: "#2A7A6E", fontWeight: 500 }}
             >
-              Forgot password?
+              {tr.forgot}
             </Link>
             {" · "}
-            No account yet?{" "}
+            {tr.noAccount}{" "}
             <Link href="/portal" style={{ color: "#2A7A6E", fontWeight: 500 }}>
-              Register →
+              {tr.register}
             </Link>
           </div>
         </div>
