@@ -12,11 +12,13 @@ export async function GET(request) {
       price,
       stock_count,
       in_stock,
-      medicines (id, name, generic_name, category, dosage, form),
+      medicines (id, name, name_ge, generic_name, category, dosage, form),
       pharmacies (id, name, address, district, lat, lng, hours, is_independent, rating)
     `,
     )
-    .ilike("medicines.name", `%${query}%`)
+    .or(
+      `name.ilike.%${query}%,name_ge.ilike.%${query}%,generic_name.ilike.%${query}%`,
+    )
     .eq("in_stock", true)
     .order("price", { ascending: true });
 
