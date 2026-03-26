@@ -486,16 +486,106 @@ export default function Dashboard() {
           )}
 
           {inventory.length === 0 ? (
-            <div
-              style={{
-                textAlign: "center",
-                padding: "32px",
-                color: "#9ABFBB",
-                fontSize: "14px",
-              }}
-            >
-              No medicines added yet. Click &quot;+ Add medicine&quot; to get
-              started.
+            <div style={{ padding: "32px", textAlign: "center" }}>
+              <div style={{ fontSize: "24px", marginBottom: "12px" }}>💊</div>
+              <div
+                style={{
+                  fontSize: "15px",
+                  fontWeight: 700,
+                  color: "#1A3A35",
+                  marginBottom: "6px",
+                }}
+              >
+                Add your first medicines
+              </div>
+              <div
+                style={{
+                  fontSize: "13px",
+                  color: "#9ABFBB",
+                  marginBottom: "24px",
+                }}
+              >
+                Choose how you want to add your inventory
+              </div>
+              <div
+                style={{
+                  display: "flex",
+                  gap: "16px",
+                  justifyContent: "center",
+                  flexWrap: "wrap",
+                }}
+              >
+                <div
+                  onClick={() => setShowAdd(true)}
+                  style={{
+                    background: "#EBF6F4",
+                    border: "2px solid #A8D9D0",
+                    borderRadius: "14px",
+                    padding: "24px",
+                    cursor: "pointer",
+                    width: "180px",
+                    transition: "all .2s",
+                  }}
+                >
+                  <div style={{ fontSize: "32px", marginBottom: "10px" }}>
+                    ✏️
+                  </div>
+                  <div
+                    style={{
+                      fontSize: "14px",
+                      fontWeight: 700,
+                      color: "#1A3A35",
+                      marginBottom: "6px",
+                    }}
+                  >
+                    Add manually
+                  </div>
+                  <div
+                    style={{
+                      fontSize: "12px",
+                      color: "#7AABA5",
+                      lineHeight: 1.5,
+                    }}
+                  >
+                    Add medicines one by one from our database
+                  </div>
+                </div>
+                <div
+                  onClick={() => router.push("/portal/upload")}
+                  style={{
+                    background: "#F0EBF8",
+                    border: "2px solid #C8B8ED",
+                    borderRadius: "14px",
+                    padding: "24px",
+                    cursor: "pointer",
+                    width: "180px",
+                    transition: "all .2s",
+                  }}
+                >
+                  <div style={{ fontSize: "32px", marginBottom: "10px" }}>
+                    📂
+                  </div>
+                  <div
+                    style={{
+                      fontSize: "14px",
+                      fontWeight: 700,
+                      color: "#1A3A35",
+                      marginBottom: "6px",
+                    }}
+                  >
+                    Upload CSV
+                  </div>
+                  <div
+                    style={{
+                      fontSize: "12px",
+                      color: "#7AABA5",
+                      lineHeight: 1.5,
+                    }}
+                  >
+                    Upload your full price list as a spreadsheet
+                  </div>
+                </div>
+              </div>
             </div>
           ) : (
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
