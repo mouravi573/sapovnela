@@ -364,12 +364,16 @@ export default function PharmacyPortal() {
               style={{ marginTop: "12px", fontSize: "13px", color: "#9ABFBB" }}
             >
               {t.alreadyReg}{" "}
-              <span
-                style={{ color: "#2A7A6E", cursor: "pointer", fontWeight: 500 }}
-                onClick={() => setStep("login")}
+              <a
+                href="/portal/login"
+                style={{
+                  color: "#2A7A6E",
+                  fontWeight: 500,
+                  textDecoration: "none",
+                }}
               >
                 {t.signIn}
-              </span>
+              </a>
             </div>
           </div>
 
