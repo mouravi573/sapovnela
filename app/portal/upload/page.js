@@ -71,12 +71,17 @@ export default function UploadCSV() {
   const router = useRouter();
 
   function downloadTemplate() {
-    const csv = `medicine_name,price,stock_count\nAmoxicillin 500mg,,\nIbuprofen 400mg,,\nParacetamol 500mg,,\nAspirin 100mg,,\nOmeprazole 20mg,,\nMetformin 850mg,,\nAzithromycin 250mg,,\nCetirizine 10mg,,\nVitamin C 500mg,,\nVitamin D3 1000IU,,`;
-    const blob = new Blob([csv], { type: "text/csv" });
+    const csv =
+      lang === "en"
+        ? `medicine_name,price,stock_count\nAmoxicillin 500mg,,\nIbuprofen 400mg,,\nParacetamol 500mg,,\nAspirin 100mg,,\nOmeprazole 20mg,,\nMetformin 850mg,,\nAzithromycin 250mg,,\nCetirizine 10mg,,\nVitamin C 500mg,,\nVitamin D3 1000IU,,`
+        : `წამლის_სახელი,ფასი,მარაგი\nამოქსიცილინი 500მგ,,\nიბუპროფენი 400მგ,,\nპარაცეტამოლი 500მგ,,\nასპირინი 100მგ,,\nომეპრაზოლი 20მგ,,\nმეტფორმინი 850მგ,,\nაზითრომიცინი 250მგ,,\nცეტირიზინი 10მგ,,\nვიტამინი C 500მგ,,\nვიტამინი D3 1000IU,,`;
+
+    const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "sapovnela-template.csv";
+    a.download =
+      lang === "en" ? "sapovnela-template.csv" : "საპოვნელა-შაბლონი.csv";
     a.click();
     URL.revokeObjectURL(url);
   }
