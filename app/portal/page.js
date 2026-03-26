@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import Link from "next/link";
+import { supabase } from "../../lib/supabase";
 
 const pt = {
   en: {
@@ -170,6 +171,40 @@ export default function PharmacyPortal() {
 
   function update(field, value) {
     setForm((prev) => ({ ...prev, [field]: value }));
+  }
+
+  async function handleRegister() {
+    if (!form.email || !form.password || !form.name) {
+      alert("Please fill in all required fields");
+      return;
+    }
+
+    try {
+      // 1. Create auth user
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: form.email,
+        password: form.password,
+      });
+
+      if (authError) throw authError;
+
+      // 2. Save pharmacy details to DB
+      const { error: dbError } = await supabase.from("pharmacies").insert({
+        name: form.name,
+        address: form.address,
+        district: form.district,
+        phone: form.phone,
+        hours: form.hours,
+        is_independent: true,
+        rating: 0,
+      });
+
+      if (dbError) throw dbError;
+
+      setStep("success");
+    } catch (err) {
+      alert("Registration failed: " + err.message);
+    }
   }
 
   return (
@@ -516,7 +551,7 @@ export default function PharmacyPortal() {
             </div>
 
             <button
-              onClick={() => setStep("success")}
+              onClick={handleRegister}
               style={{
                 width: "100%",
                 background: "#2A7A6E",
