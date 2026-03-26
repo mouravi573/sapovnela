@@ -31,6 +31,8 @@ const translations = {
     generic: "Generic",
     location: "Vake, Tbilisi",
     tagline: "Georgia's medicine price finder",
+    askPlaceholder: "Ask about this medicine...",
+    askBtn: "Ask →",
   },
   ge: {
     find: "იპოვე",
@@ -61,6 +63,8 @@ const translations = {
     generic: "გენერიკი",
     location: "ვაკე, თბილისი",
     tagline: "საქართველოს წამლების ფასების საძიებო",
+    askPlaceholder: "დასვი კითხვა წამლის შესახებ...",
+    askBtn: "კითხვა →",
   },
 };
 
@@ -126,9 +130,13 @@ export default function Home() {
     if (!query.trim()) return;
     setLoading(true);
     setSearched(true);
-    const res = await fetch(`/api/search?q=${query}`);
-    const json = await res.json();
-    setResults(json.data || []);
+    try {
+      const res = await fetch(`/api/search?q=${query}`);
+      const json = await res.json();
+      setResults(json.data || []);
+    } catch {
+      setResults([]);
+    }
     setLoading(false);
   }
 
@@ -171,6 +179,8 @@ export default function Home() {
     return acc;
   }, {});
 
+  const pad = { padding: "0 clamp(16px, 4vw, 40px)" };
+
   return (
     <main
       style={{
@@ -184,11 +194,11 @@ export default function Home() {
         style={{
           background: "#fff",
           borderBottom: "1px solid #D0EBE7",
-          padding: "0 40px",
+          ...pad,
           height: "64px",
           display: "flex",
           alignItems: "center",
-          gap: "16px",
+          gap: "12px",
         }}
       >
         <Logo />
@@ -210,13 +220,12 @@ export default function Home() {
               style={{
                 fontSize: "12px",
                 fontWeight: lang === l ? 600 : 400,
-                padding: "4px 12px",
+                padding: "4px 10px",
                 borderRadius: "16px",
                 border: "none",
                 cursor: "pointer",
                 background: lang === l ? "#2A7A6E" : "transparent",
                 color: lang === l ? "#fff" : "#6BA89E",
-                transition: "all .2s",
               }}
             >
               {l === "en" ? "EN" : "ქარ"}
@@ -225,17 +234,6 @@ export default function Home() {
         </div>
         <div style={{ flex: 1 }} />
         <button
-          style={{
-            fontSize: "13px",
-            color: "#4A7A74",
-            background: "none",
-            border: "none",
-            cursor: "pointer",
-          }}
-        >
-          {t.findMedicine}
-        </button>
-        <button
           onClick={() => (window.location.href = "/portal")}
           style={{
             fontSize: "13px",
@@ -243,9 +241,10 @@ export default function Home() {
             color: "#fff",
             border: "none",
             borderRadius: "20px",
-            padding: "8px 20px",
+            padding: "8px 16px",
             cursor: "pointer",
             fontWeight: 600,
+            whiteSpace: "nowrap",
           }}
         >
           {t.portal}
@@ -257,7 +256,9 @@ export default function Home() {
         style={{
           background: "#fff",
           borderBottom: "1px solid #D0EBE7",
-          padding: "36px 40px 28px",
+          ...pad,
+          paddingTop: "28px",
+          paddingBottom: "24px",
         }}
       >
         <div
@@ -282,7 +283,7 @@ export default function Home() {
         </div>
         <h1
           style={{
-            fontSize: "30px",
+            fontSize: "clamp(20px, 5vw, 30px)",
             fontWeight: 700,
             color: "#1A3A35",
             marginBottom: "6px",
@@ -293,10 +294,11 @@ export default function Home() {
           {t.find} <span style={{ color: "#2A7A6E" }}>{t.affordable}</span>{" "}
           {t.nearYou}
         </h1>
-        <p style={{ fontSize: "14px", color: "#7AABA5", marginBottom: "22px" }}>
+        <p style={{ fontSize: "14px", color: "#7AABA5", marginBottom: "20px" }}>
           {t.subtitle}
         </p>
 
+        {/* Search bar */}
         <div
           style={{
             display: "flex",
@@ -304,8 +306,9 @@ export default function Home() {
             gap: "8px",
             border: "2px solid #D0EBE7",
             borderRadius: "16px",
-            padding: "6px 6px 6px 16px",
+            padding: "6px 6px 6px 14px",
             background: "#fff",
+            flexWrap: "wrap",
           }}
         >
           <svg
@@ -331,6 +334,7 @@ export default function Home() {
             placeholder={t.placeholder}
             style={{
               flex: 1,
+              minWidth: "120px",
               border: "none",
               outline: "none",
               fontSize: "15px",
@@ -346,7 +350,7 @@ export default function Home() {
               background: "#EBF6F4",
               border: "1px solid #A8D9D0",
               color: "#2A7A6E",
-              padding: "5px 12px",
+              padding: "5px 10px",
               borderRadius: "12px",
               fontSize: "12px",
               fontWeight: 500,
@@ -371,7 +375,7 @@ export default function Home() {
               color: "#fff",
               border: "none",
               borderRadius: "12px",
-              padding: "10px 22px",
+              padding: "10px 20px",
               fontSize: "14px",
               fontWeight: 700,
               cursor: "pointer",
@@ -382,11 +386,12 @@ export default function Home() {
           </button>
         </div>
 
+        {/* Quick tags */}
         <div
           style={{
             display: "flex",
             gap: "8px",
-            marginTop: "14px",
+            marginTop: "12px",
             flexWrap: "wrap",
           }}
         >
@@ -405,7 +410,7 @@ export default function Home() {
                 background: "#EBF6F4",
                 color: "#2A7A6E",
                 border: "1px solid #A8D9D0",
-                padding: "5px 14px",
+                padding: "5px 12px",
                 borderRadius: "20px",
                 fontSize: "12px",
                 cursor: "pointer",
@@ -421,20 +426,14 @@ export default function Home() {
       {/* AI Bar */}
       <div
         style={{
-          margin: "16px 40px 0",
+          margin: "16px clamp(16px, 4vw, 40px) 0",
           background: "#F0EBF8",
           border: "1px solid #C8B8ED",
           borderRadius: "12px",
           padding: "14px 16px",
         }}
       >
-        <div
-          style={{
-            display: "flex",
-            gap: "12px",
-            marginBottom: chatReply ? "12px" : "0",
-          }}
-        >
+        <div style={{ display: "flex", gap: "12px" }}>
           <div
             style={{
               width: "34px",
@@ -450,7 +449,7 @@ export default function Home() {
           >
             🤖
           </div>
-          <div style={{ flex: 1 }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
             <div
               style={{
                 fontSize: "11px",
@@ -488,11 +487,7 @@ export default function Home() {
                 onKeyDown={async (e) => {
                   if (e.key === "Enter") await sendChat();
                 }}
-                placeholder={
-                  lang === "en"
-                    ? "Ask about this medicine..."
-                    : "დასვი კითხვა წამლის შესახებ..."
-                }
+                placeholder={t.askPlaceholder}
                 style={{
                   flex: 1,
                   border: "1.5px solid #C8B8ED",
@@ -502,6 +497,7 @@ export default function Home() {
                   outline: "none",
                   background: "#fff",
                   color: "#1A3A35",
+                  minWidth: 0,
                 }}
               />
               <button
@@ -512,14 +508,14 @@ export default function Home() {
                   color: "#fff",
                   border: "none",
                   borderRadius: "10px",
-                  padding: "8px 16px",
+                  padding: "8px 14px",
                   fontSize: "13px",
                   fontWeight: 600,
                   cursor: chatLoading ? "default" : "pointer",
                   flexShrink: 0,
                 }}
               >
-                {chatLoading ? "..." : "Ask →"}
+                {chatLoading ? "..." : t.askBtn}
               </button>
             </div>
           </div>
@@ -527,7 +523,7 @@ export default function Home() {
       </div>
 
       {/* Results */}
-      <div style={{ padding: "20px 40px 48px" }}>
+      <div style={{ padding: "20px clamp(16px, 4vw, 40px) 48px" }}>
         {loading && (
           <div
             style={{
@@ -556,7 +552,7 @@ export default function Home() {
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "repeat(3,1fr)",
+              gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
               gap: "12px",
             }}
           >
@@ -567,13 +563,13 @@ export default function Home() {
                   background: "#fff",
                   border: "1px solid #D0EBE7",
                   borderRadius: "12px",
-                  padding: "22px",
+                  padding: "20px",
                   textAlign: "center",
                 }}
               >
                 <div
                   style={{
-                    fontSize: "28px",
+                    fontSize: "26px",
                     fontWeight: 700,
                     color: "#2A7A6E",
                   }}
@@ -601,7 +597,7 @@ export default function Home() {
                 background: "#fff",
                 border: "1px solid #D0EBE7",
                 borderRadius: "14px",
-                padding: "20px",
+                padding: "16px",
                 marginBottom: "12px",
               }}
             >
@@ -610,13 +606,14 @@ export default function Home() {
                   display: "flex",
                   alignItems: "flex-start",
                   justifyContent: "space-between",
-                  marginBottom: "16px",
+                  marginBottom: "14px",
+                  gap: "12px",
                 }}
               >
-                <div>
+                <div style={{ minWidth: 0 }}>
                   <h2
                     style={{
-                      fontSize: "16px",
+                      fontSize: "15px",
                       fontWeight: 700,
                       color: "#1A3A35",
                       marginBottom: "4px",
@@ -644,13 +641,13 @@ export default function Home() {
                     {t.pharmaciesInStock(pharmacies.length)}
                   </span>
                 </div>
-                <div style={{ textAlign: "right" }}>
+                <div style={{ textAlign: "right", flexShrink: 0 }}>
                   <div style={{ fontSize: "11px", color: "#9ABFBB" }}>
                     {t.from}
                   </div>
                   <div
                     style={{
-                      fontSize: "28px",
+                      fontSize: "24px",
                       fontWeight: 700,
                       color: "#2A7A6E",
                       lineHeight: 1.1,
@@ -668,11 +665,12 @@ export default function Home() {
                     style={{
                       display: "flex",
                       alignItems: "center",
-                      gap: "10px",
-                      padding: "10px 12px",
+                      gap: "8px",
+                      padding: "8px 10px",
                       borderRadius: "10px",
                       background: i === 0 ? "#EBF6F4" : "#F8FDFC",
                       marginBottom: "6px",
+                      flexWrap: "wrap",
                     }}
                   >
                     <div
@@ -684,15 +682,12 @@ export default function Home() {
                         background: i === 0 ? "#2A7A6E" : "#C0DDD9",
                       }}
                     ></div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ flex: 1, minWidth: "120px" }}>
                       <div
                         style={{
                           fontSize: "13px",
                           fontWeight: 600,
                           color: "#1A3A35",
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                          whiteSpace: "nowrap",
                         }}
                       >
                         {ph.name}
@@ -707,62 +702,69 @@ export default function Home() {
                         {ph.address} · {ph.hours}
                       </div>
                     </div>
-                    {i === 0 && (
-                      <span
-                        style={{
-                          fontSize: "11px",
-                          fontWeight: 600,
-                          background: "#FFF3E0",
-                          color: "#C47D00",
-                          border: "1px solid #FFD97A",
-                          padding: "3px 9px",
-                          borderRadius: "8px",
-                        }}
-                      >
-                        {t.cheapest}
-                      </span>
-                    )}
-                    {ph.is_independent && (
-                      <span
-                        style={{
-                          fontSize: "11px",
-                          fontWeight: 500,
-                          background: "#EBF6F4",
-                          color: "#2A7A6E",
-                          border: "1px solid #A8D9D0",
-                          padding: "3px 9px",
-                          borderRadius: "8px",
-                        }}
-                      >
-                        {t.independent}
-                      </span>
-                    )}
                     <div
                       style={{
-                        fontSize: "14px",
-                        fontWeight: 700,
-                        color: "#1A3A35",
-                        minWidth: "48px",
-                        textAlign: "right",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "6px",
+                        flexWrap: "wrap",
                       }}
                     >
-                      {ph.price.toFixed(2)} ₾
+                      {i === 0 && (
+                        <span
+                          style={{
+                            fontSize: "11px",
+                            fontWeight: 600,
+                            background: "#FFF3E0",
+                            color: "#C47D00",
+                            border: "1px solid #FFD97A",
+                            padding: "3px 8px",
+                            borderRadius: "8px",
+                          }}
+                        >
+                          {t.cheapest}
+                        </span>
+                      )}
+                      {ph.is_independent && (
+                        <span
+                          style={{
+                            fontSize: "11px",
+                            fontWeight: 500,
+                            background: "#EBF6F4",
+                            color: "#2A7A6E",
+                            border: "1px solid #A8D9D0",
+                            padding: "3px 8px",
+                            borderRadius: "8px",
+                          }}
+                        >
+                          {t.independent}
+                        </span>
+                      )}
+                      <div
+                        style={{
+                          fontSize: "14px",
+                          fontWeight: 700,
+                          color: "#1A3A35",
+                        }}
+                      >
+                        {ph.price.toFixed(2)} ₾
+                      </div>
+                      <button
+                        style={{
+                          background: "#2A7A6E",
+                          color: "#fff",
+                          border: "none",
+                          borderRadius: "8px",
+                          padding: "6px 12px",
+                          fontSize: "12px",
+                          fontWeight: 500,
+                          cursor: "pointer",
+                          flexShrink: 0,
+                        }}
+                      >
+                        {t.directions}
+                      </button>
                     </div>
-                    <button
-                      style={{
-                        background: "#2A7A6E",
-                        color: "#fff",
-                        border: "none",
-                        borderRadius: "8px",
-                        padding: "6px 14px",
-                        fontSize: "12px",
-                        fontWeight: 500,
-                        cursor: "pointer",
-                        flexShrink: 0,
-                      }}
-                    >
-                      {t.directions}
-                    </button>
                   </div>
                 ))}
             </div>
@@ -773,11 +775,15 @@ export default function Home() {
       <div
         style={{
           borderTop: "1px solid #D0EBE7",
-          padding: "20px 40px",
+          ...pad,
+          paddingTop: "20px",
+          paddingBottom: "20px",
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
           background: "#fff",
+          flexWrap: "wrap",
+          gap: "12px",
         }}
       >
         <Logo />

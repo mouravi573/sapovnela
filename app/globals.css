@@ -32,3 +32,29 @@ textarea {
   background: #ffffff !important;
   color-scheme: light;
 }
+
+@media (max-width: 768px) {
+  .desktop-padding {
+    padding-left: 16px !important;
+    padding-right: 16px !important;
+  }
+
+  .desktop-grid-3 {
+    grid-template-columns: 1fr !important;
+  }
+
+  .desktop-grid-2 {
+    grid-template-columns: 1fr !important;
+  }
+
+  .hide-mobile {
+    display: none !important;
+  }
+
+  .nav-height {
+    height: auto !important;
+    padding-top: 10px !important;
+    padding-bottom: 10px !important;
+    flex-wrap: wrap !important;
+  }
+}
