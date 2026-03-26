@@ -7,7 +7,14 @@ import { supabase } from "../../../lib/supabase";
 export default function Dashboard() {
   const [pharmacy, setPharmacy] = useState(null);
   const [inventory, setInventory] = useState([]);
+  const [medicines, setMedicines] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [showAdd, setShowAdd] = useState(false);
+  const [newMedicine, setNewMedicine] = useState({
+    medicine_id: "",
+    price: "",
+    stock_count: 10,
+  });
   const router = useRouter();
 
   const loadDashboard = useCallback(async () => {
@@ -33,6 +40,12 @@ export default function Dashboard() {
         .eq("pharmacy_id", pharmacyData.id);
       setInventory(inv || []);
     }
+
+    const { data: meds } = await supabase
+      .from("medicines")
+      .select("*")
+      .order("name");
+    setMedicines(meds || []);
 
     setLoading(false);
   }, [router]);
@@ -60,6 +73,21 @@ export default function Dashboard() {
         updated_at: new Date().toISOString(),
       })
       .eq("id", item.id);
+  }
+
+  async function addMedicine() {
+    if (!newMedicine.medicine_id || !newMedicine.price) return;
+    await supabase.from("inventory").insert({
+      pharmacy_id: pharmacy.id,
+      medicine_id: newMedicine.medicine_id,
+      price: parseFloat(newMedicine.price),
+      stock_count: parseInt(newMedicine.stock_count),
+      in_stock: true,
+      updated_at: new Date().toISOString(),
+    });
+    setNewMedicine({ medicine_id: "", price: "", stock_count: 10 });
+    setShowAdd(false);
+    loadDashboard();
   }
 
   async function handleLogout() {
@@ -93,6 +121,7 @@ export default function Dashboard() {
         fontFamily: "system-ui, sans-serif",
       }}
     >
+      {/* Navbar */}
       <nav
         style={{
           background: "#fff",
@@ -162,6 +191,7 @@ export default function Dashboard() {
       </nav>
 
       <div style={{ padding: "28px 40px" }}>
+        {/* Stats */}
         <div
           style={{
             display: "grid",
@@ -202,6 +232,7 @@ export default function Dashboard() {
           ))}
         </div>
 
+        {/* AI Insight */}
         <div
           style={{
             background: "#F0EBF8",
@@ -249,6 +280,7 @@ export default function Dashboard() {
           </div>
         </div>
 
+        {/* Inventory */}
         <div
           style={{
             background: "#fff",
@@ -268,7 +300,177 @@ export default function Dashboard() {
             <h2 style={{ fontSize: "16px", fontWeight: 700, color: "#1A3A35" }}>
               Your inventory
             </h2>
+            <button
+              onClick={() => setShowAdd(!showAdd)}
+              style={{
+                background: "#2A7A6E",
+                color: "#fff",
+                border: "none",
+                borderRadius: "8px",
+                padding: "7px 16px",
+                fontSize: "13px",
+                fontWeight: 600,
+                cursor: "pointer",
+              }}
+            >
+              + Add medicine
+            </button>
           </div>
+
+          {/* Add medicine form */}
+          {showAdd && (
+            <div
+              style={{
+                background: "#EBF6F4",
+                border: "1px solid #A8D9D0",
+                borderRadius: "10px",
+                padding: "16px",
+                display: "flex",
+                gap: "10px",
+                alignItems: "flex-end",
+                marginBottom: "16px",
+                flexWrap: "wrap",
+              }}
+            >
+              <div style={{ flex: 2, minWidth: "200px" }}>
+                <label
+                  style={{
+                    fontSize: "12px",
+                    fontWeight: 600,
+                    color: "#1A3A35",
+                    display: "block",
+                    marginBottom: "5px",
+                  }}
+                >
+                  Medicine
+                </label>
+                <select
+                  value={newMedicine.medicine_id}
+                  onChange={(e) =>
+                    setNewMedicine((prev) => ({
+                      ...prev,
+                      medicine_id: e.target.value,
+                    }))
+                  }
+                  style={{
+                    width: "100%",
+                    border: "1.5px solid #D0EBE7",
+                    borderRadius: "8px",
+                    padding: "8px 10px",
+                    fontSize: "13px",
+                    outline: "none",
+                    background: "#fff",
+                  }}
+                >
+                  <option value="">Select medicine...</option>
+                  {medicines.map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {m.name} — {m.dosage}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div style={{ flex: 1, minWidth: "100px" }}>
+                <label
+                  style={{
+                    fontSize: "12px",
+                    fontWeight: 600,
+                    color: "#1A3A35",
+                    display: "block",
+                    marginBottom: "5px",
+                  }}
+                >
+                  Price (₾)
+                </label>
+                <input
+                  type="number"
+                  placeholder="0.00"
+                  value={newMedicine.price}
+                  onChange={(e) =>
+                    setNewMedicine((prev) => ({
+                      ...prev,
+                      price: e.target.value,
+                    }))
+                  }
+                  style={{
+                    width: "100%",
+                    border: "1.5px solid #D0EBE7",
+                    borderRadius: "8px",
+                    padding: "8px 10px",
+                    fontSize: "13px",
+                    outline: "none",
+                    background: "#fff",
+                    boxSizing: "border-box",
+                  }}
+                />
+              </div>
+              <div style={{ flex: 1, minWidth: "100px" }}>
+                <label
+                  style={{
+                    fontSize: "12px",
+                    fontWeight: 600,
+                    color: "#1A3A35",
+                    display: "block",
+                    marginBottom: "5px",
+                  }}
+                >
+                  Stock count
+                </label>
+                <input
+                  type="number"
+                  placeholder="10"
+                  value={newMedicine.stock_count}
+                  onChange={(e) =>
+                    setNewMedicine((prev) => ({
+                      ...prev,
+                      stock_count: e.target.value,
+                    }))
+                  }
+                  style={{
+                    width: "100%",
+                    border: "1.5px solid #D0EBE7",
+                    borderRadius: "8px",
+                    padding: "8px 10px",
+                    fontSize: "13px",
+                    outline: "none",
+                    background: "#fff",
+                    boxSizing: "border-box",
+                  }}
+                />
+              </div>
+              <button
+                onClick={addMedicine}
+                style={{
+                  background: "#2A7A6E",
+                  color: "#fff",
+                  border: "none",
+                  borderRadius: "8px",
+                  padding: "8px 20px",
+                  fontSize: "13px",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  flexShrink: 0,
+                }}
+              >
+                Add →
+              </button>
+              <button
+                onClick={() => setShowAdd(false)}
+                style={{
+                  background: "none",
+                  border: "1px solid #D0EBE7",
+                  color: "#7AABA5",
+                  borderRadius: "8px",
+                  padding: "8px 16px",
+                  fontSize: "13px",
+                  cursor: "pointer",
+                  flexShrink: 0,
+                }}
+              >
+                Cancel
+              </button>
+            </div>
+          )}
 
           {inventory.length === 0 ? (
             <div
@@ -279,7 +481,8 @@ export default function Dashboard() {
                 fontSize: "14px",
               }}
             >
-              No medicines added yet. Contact us to add your inventory.
+              No medicines added yet. Click &quot;+ Add medicine&quot; to get
+              started.
             </div>
           ) : (
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
