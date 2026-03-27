@@ -170,11 +170,25 @@ export default function Search() {
   const [showMap, setShowMap] = useState(false);
   const [showDistricts, setShowDistricts] = useState(false);
   const [customDistrict, setCustomDistrict] = useState(null);
+  const [allPharmaciesForMap, setAllPharmaciesForMap] = useState([]);
 
   useEffect(() => {
     const saved = localStorage.getItem("lang") || "ge";
     setLang(saved);
     setMounted(true);
+    // Auto-show map and load ALL pharmacies when coming from portal card
+    if (window.location.search.includes("map=1")) {
+      setShowMap(true);
+      import("../../lib/supabase").then(({ supabase }) => {
+        supabase
+          .from("pharmacies")
+          .select("id, name, address, lat, lng, hours, is_independent")
+          .not("lat", "is", null)
+          .then(({ data }) => {
+            if (data) setAllPharmaciesForMap(data);
+          });
+      });
+    }
   }, []);
 
   const t = translations[lang];
@@ -253,6 +267,8 @@ export default function Search() {
     .flatMap(({ pharmacies }) => pharmacies)
     .filter((ph, idx, self) => self.findIndex((p) => p.id === ph.id) === idx)
     .filter((ph) => ph.lat && ph.lng);
+  const mapPharmacies =
+    allPharmaciesForMap.length > 0 ? allPharmaciesForMap : allPharmacies;
   const pad = { padding: "0 clamp(16px, 4vw, 40px)" };
 
   if (!mounted) return null;
@@ -434,7 +450,6 @@ export default function Search() {
               background: "transparent",
             }}
           />
-
           <div style={{ position: "relative", flexShrink: 0 }}>
             <div
               onClick={() => setShowDistricts(!showDistricts)}
@@ -450,7 +465,6 @@ export default function Search() {
                 fontSize: "12px",
                 fontWeight: 500,
                 cursor: "pointer",
-                transition: "all .2s",
               }}
             >
               <div
@@ -538,7 +552,6 @@ export default function Search() {
               </div>
             )}
           </div>
-
           <button
             onClick={handleSearch}
             style={{
@@ -716,7 +729,7 @@ export default function Search() {
             {t.noResults(query)}
           </div>
         )}
-        {!loading && !searched && (
+        {!loading && !searched && mapPharmacies.length === 0 && (
           <div
             style={{
               display: "grid",
@@ -758,7 +771,7 @@ export default function Search() {
           </div>
         )}
 
-        {!loading && searched && allPharmacies.length > 0 && (
+        {(allPharmacies.length > 0 || mapPharmacies.length > 0) && (
           <div style={{ marginBottom: "16px" }}>
             <button
               onClick={() => setShowMap(!showMap)}
@@ -778,18 +791,18 @@ export default function Search() {
           </div>
         )}
 
-        {showMap && allPharmacies.length > 0 && (
+        {showMap && mapPharmacies.length > 0 && (
           <div
             style={{
               marginBottom: "20px",
               borderRadius: "14px",
               overflow: "hidden",
               border: "1px solid #D0EBE7",
-              height: "320px",
+              height: "420px",
             }}
           >
             <MapView
-              pharmacies={allPharmacies}
+              pharmacies={mapPharmacies}
               userLocation={effectiveLocation}
             />
           </div>
@@ -814,7 +827,6 @@ export default function Search() {
                     ) || 999),
                 )
               : [...pharmacies].sort((a, b) => a.price - b.price);
-
             return (
               <div
                 key={medicine.id}
@@ -893,7 +905,6 @@ export default function Search() {
                     </div>
                   </div>
                 </div>
-
                 {sortedPharmacies.map((ph, i) => {
                   const dist = effectiveLocation
                     ? getDistance(
