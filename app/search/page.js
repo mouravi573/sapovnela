@@ -791,7 +791,7 @@ export default function Search() {
           </div>
         )}
 
-        {showMap && mapPharmacies.length > 0 && (
+        {showMap && (
           <div
             style={{
               marginBottom: "20px",

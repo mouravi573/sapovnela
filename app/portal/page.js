@@ -547,11 +547,13 @@ export default function PharmacyPortal() {
             {/* Card 2 */}
             <div
               className="benefit-card"
+              onClick={() => (window.location.href = "/champions")}
               style={{
                 background: "#FEF9EC",
                 border: "1px solid #FFD97A",
                 borderRadius: "20px",
                 padding: "24px",
+                cursor: "pointer",
                 transition:
                   "transform 0.8s cubic-bezier(0.25,1.4,0.5,1), box-shadow 0.8s cubic-bezier(0.25,1.4,0.5,1)",
               }}
