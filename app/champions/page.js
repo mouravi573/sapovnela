@@ -261,7 +261,7 @@ export default function Champions() {
           <div
             style={{
               display: "flex",
-              background: "#1b1870",
+              background: "#C5E4F5",
               borderRadius: "20px",
               padding: "4px",
               gap: "3px",
