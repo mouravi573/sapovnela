@@ -153,12 +153,8 @@ const districts = [
 
 export default function PharmacyPortal() {
   const [step, setStep] = useState("landing");
-  const [lang, setLang] = useState(() => {
-    if (typeof window !== "undefined") {
-      return localStorage.getItem("lang") || "en";
-    }
-    return "en";
-  });
+  const [lang, setLang] = useState("ge");
+  const [mounted, setMounted] = useState(false);
   const [form, setForm] = useState({
     name: "",
     address: "",
@@ -173,9 +169,11 @@ export default function PharmacyPortal() {
     medicines: 0,
     listings: 0,
   });
-  const t = pt[lang];
 
   useEffect(() => {
+    const saved = localStorage.getItem("lang") || "ge";
+    setLang(saved);
+    setMounted(true);
     async function fetchStats() {
       const [{ count: pharmacies }, { count: medicines }, { count: listings }] =
         await Promise.all([
@@ -197,6 +195,8 @@ export default function PharmacyPortal() {
     }
     fetchStats();
   }, []);
+
+  const t = pt[lang];
 
   function update(field, value) {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -230,6 +230,8 @@ export default function PharmacyPortal() {
     }
   }
 
+  if (!mounted) return null;
+
   return (
     <main
       style={{
@@ -238,7 +240,6 @@ export default function PharmacyPortal() {
         fontFamily: "system-ui, sans-serif",
       }}
     >
-      {/* Navbar */}
       <nav
         style={{
           background: "#fff",
@@ -325,7 +326,6 @@ export default function PharmacyPortal() {
         </div>
       </nav>
 
-      {/* Landing */}
       {step === "landing" && (
         <div
           style={{ maxWidth: "860px", margin: "0 auto", padding: "48px 24px" }}
@@ -402,7 +402,6 @@ export default function PharmacyPortal() {
             </div>
           </div>
 
-          {/* Benefit cards */}
           <div
             style={{
               display: "grid",
@@ -447,7 +446,6 @@ export default function PharmacyPortal() {
             ))}
           </div>
 
-          {/* Live stats ribbon */}
           <div
             style={{
               background: "#2A7A6E",
@@ -485,7 +483,6 @@ export default function PharmacyPortal() {
         </div>
       )}
 
-      {/* Register */}
       {step === "register" && (
         <div
           style={{ maxWidth: "560px", margin: "40px auto", padding: "0 24px" }}
@@ -616,7 +613,6 @@ export default function PharmacyPortal() {
         </div>
       )}
 
-      {/* Success */}
       {step === "success" && (
         <div
           style={{

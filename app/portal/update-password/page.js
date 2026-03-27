@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "../../../lib/supabase";
@@ -43,14 +43,16 @@ export default function UpdatePassword() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [done, setDone] = useState(false);
-  const [lang, setLang] = useState(() => {
-    if (typeof window !== "undefined") {
-      return localStorage.getItem("lang") || "en";
-    }
-    return "en";
-  });
+  const [lang, setLang] = useState("ge");
+  const [mounted, setMounted] = useState(false);
   const tr = t[lang];
   const router = useRouter();
+
+  useEffect(() => {
+    const saved = localStorage.getItem("lang") || "ge";
+    setLang(saved);
+    setMounted(true);
+  }, []);
 
   async function handleUpdate() {
     if (!password || !confirm) return;
@@ -73,6 +75,8 @@ export default function UpdatePassword() {
       setTimeout(() => router.push("/portal/login"), 3000);
     }
   }
+
+  if (!mounted) return null;
 
   return (
     <main

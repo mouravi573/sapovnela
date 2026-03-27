@@ -32,7 +32,7 @@ const translations = {
       { val: "Free", label: "No registration" },
     ],
     findMedicine: "Find Medicine",
-    portal: "For Pharmacy",
+    portal: "For Pharmacies",
     generic: "Generic",
     location: "Vake, Tbilisi",
     locating: "Locating...",
@@ -160,21 +160,24 @@ export default function Home() {
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
-  const [lang, setLang] = useState(() => {
-    if (typeof window !== "undefined") {
-      return localStorage.getItem("lang") || "ge";
-    }
-    return "ge";
-  });
+  const [lang, setLang] = useState("ge");
+  const [mounted, setMounted] = useState(false);
   const [chatMessage, setChatMessage] = useState("");
   const [chatReply, setChatReply] = useState("");
   const [chatLoading, setChatLoading] = useState(false);
   const [userLocation, setUserLocation] = useState(null);
   const [locating, setLocating] = useState(false);
   const [showMap, setShowMap] = useState(false);
-  const t = translations[lang];
   const [showDistricts, setShowDistricts] = useState(false);
   const [customDistrict, setCustomDistrict] = useState(null);
+
+  useEffect(() => {
+    const saved = localStorage.getItem("lang") || "ge";
+    setLang(saved);
+    setMounted(true);
+  }, []);
+
+  const t = translations[lang];
 
   async function handleSearch() {
     if (!query.trim()) return;
@@ -244,7 +247,6 @@ export default function Home() {
     return acc;
   }, {});
 
-  // Collect all unique pharmacies from results for map
   const effectiveLocation =
     userLocation || (customDistrict ? districtCoords[customDistrict] : null);
 
@@ -254,6 +256,8 @@ export default function Home() {
     .filter((ph) => ph.lat && ph.lng);
 
   const pad = { padding: "0 clamp(16px, 4vw, 40px)" };
+
+  if (!mounted) return null;
 
   return (
     <main
@@ -322,10 +326,9 @@ export default function Home() {
             cursor: "pointer",
             fontWeight: 600,
             whiteSpace: "nowrap",
-            display: "block",
           }}
         >
-          {lang === "en" ? "Portal" : "პორტალი"}
+          {t.portal}
         </button>
       </nav>
 
@@ -376,7 +379,6 @@ export default function Home() {
           {t.subtitle}
         </p>
 
-        {/* Search bar */}
         <div
           style={{
             display: "flex",
@@ -420,7 +422,7 @@ export default function Home() {
               background: "transparent",
             }}
           />
-          {/* GPS Location badge */}
+
           <div style={{ position: "relative", flexShrink: 0 }}>
             <div
               onClick={() => setShowDistricts(!showDistricts)}
@@ -456,7 +458,6 @@ export default function Home() {
                     : t.location}
               <span style={{ fontSize: "10px", marginLeft: "2px" }}>▾</span>
             </div>
-
             {showDistricts && (
               <div
                 style={{
@@ -525,6 +526,7 @@ export default function Home() {
               </div>
             )}
           </div>
+
           <button
             onClick={handleSearch}
             style={{
@@ -543,7 +545,6 @@ export default function Home() {
           </button>
         </div>
 
-        {/* Quick tags */}
         <div
           style={{
             display: "flex",
@@ -693,7 +694,6 @@ export default function Home() {
             {t.searching}
           </div>
         )}
-
         {!loading && searched && results.length === 0 && (
           <div
             style={{
@@ -706,7 +706,6 @@ export default function Home() {
             {t.noResults(query)}
           </div>
         )}
-
         {!loading && !searched && (
           <div
             style={{
@@ -749,7 +748,6 @@ export default function Home() {
           </div>
         )}
 
-        {/* Map toggle button */}
         {!loading && searched && allPharmacies.length > 0 && (
           <div style={{ marginBottom: "16px" }}>
             <button
@@ -770,7 +768,6 @@ export default function Home() {
           </div>
         )}
 
-        {/* Map */}
         {showMap && allPharmacies.length > 0 && (
           <div
             style={{

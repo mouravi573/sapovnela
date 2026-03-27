@@ -1,5 +1,5 @@
 "use client";
-import { useState, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "../../../lib/supabase";
@@ -66,21 +66,22 @@ export default function UploadCSV() {
   const [uploading, setUploading] = useState(false);
   const [done, setDone] = useState(false);
   const [savedCount, setSavedCount] = useState(0);
-  const [lang, setLang] = useState(() => {
-    if (typeof window !== "undefined") {
-      return localStorage.getItem("lang") || "en";
-    }
-    return "en";
-  });
+  const [lang, setLang] = useState("ge");
+  const [mounted, setMounted] = useState(false);
   const tr = t[lang];
   const router = useRouter();
+
+  useEffect(() => {
+    const saved = localStorage.getItem("lang") || "ge";
+    setLang(saved);
+    setMounted(true);
+  }, []);
 
   function downloadTemplate() {
     const csv =
       lang === "en"
         ? `medicine_name,price,stock_count\nAmoxicillin 500mg,,\nIbuprofen 400mg,,\nParacetamol 500mg,,\nAspirin 100mg,,\nOmeprazole 20mg,,\nMetformin 850mg,,\nAzithromycin 250mg,,\nCetirizine 10mg,,\nVitamin C 500mg,,\nVitamin D3 1000IU,,`
         : `წამლის_სახელი,ფასი,მარაგი\nამოქსიცილინი 500მგ,,\nიბუპროფენი 400მგ,,\nპარაცეტამოლი 500მგ,,\nასპირინი 100მგ,,\nომეპრაზოლი 20მგ,,\nმეტფორმინი 850მგ,,\nაზითრომიცინი 250მგ,,\nცეტირიზინი 10მგ,,\nვიტამინი C 500მგ,,\nვიტამინი D3 1000IU,,`;
-
     const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -177,7 +178,6 @@ ${rawText.substring(0, 3000)}`,
       const isOurFormat =
         firstLine.includes("medicine_name") ||
         firstLine.includes("წამლის_სახელი");
-
       if (isOurFormat) {
         const { rows, errs } = parseCSV(text);
         setPreview(rows);
@@ -212,7 +212,6 @@ ${rawText.substring(0, 3000)}`,
   async function handleUpload() {
     if (preview.length === 0) return;
     setUploading(true);
-
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -220,7 +219,6 @@ ${rawText.substring(0, 3000)}`,
       router.push("/portal/login");
       return;
     }
-
     const { data: pharmacy } = await supabase
       .from("pharmacies")
       .select("id")
@@ -228,7 +226,6 @@ ${rawText.substring(0, 3000)}`,
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
-
     if (!pharmacy) {
       setErrors([
         lang === "en"
@@ -238,7 +235,6 @@ ${rawText.substring(0, 3000)}`,
       setUploading(false);
       return;
     }
-
     let saved = 0;
     for (const row of preview) {
       const { data: med } = await supabase
@@ -247,7 +243,6 @@ ${rawText.substring(0, 3000)}`,
         .ilike("name", `%${row.name}%`)
         .limit(1)
         .maybeSingle();
-
       if (med) {
         await supabase.from("inventory").upsert(
           {
@@ -263,11 +258,12 @@ ${rawText.substring(0, 3000)}`,
         saved++;
       }
     }
-
     setSavedCount(saved);
     setUploading(false);
     setDone(true);
   }
+
+  if (!mounted) return null;
 
   return (
     <main
@@ -451,7 +447,6 @@ ${rawText.substring(0, 3000)}`,
                 {tr.subtitle}
               </p>
 
-              {/* Format guide */}
               <div
                 style={{
                   background: "#EBF6F4",
@@ -510,7 +505,6 @@ Paracetamol 500mg,0.60,100`}
                 </pre>
               </div>
 
-              {/* Drop zone */}
               <div
                 onDragOver={(e) => {
                   e.preventDefault();

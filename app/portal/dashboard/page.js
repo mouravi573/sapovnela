@@ -55,7 +55,7 @@ const t = {
     noMedicinesDesc: "აირჩიე როგორ გინდა მარაგების დამატება",
     addManually: "ხელით დამატება",
     addManuallyDesc: "დაამატე წამლები სათითაოდ ჩვენი ბაზიდან",
-    uploadDesc: "ატვირთე შენი პროდუქციის სრულია სია ცხრილის სახით",
+    uploadDesc: "ატვირთე შენი პროდუქციის სრული სია ცხრილის სახით",
     medicine: "წამალი",
     price: "ფასი (₾)",
     stockStatus: "მარაგშია",
@@ -80,12 +80,8 @@ export default function Dashboard() {
     price: "",
     stock_count: 10,
   });
-  const [lang, setLang] = useState(() => {
-    if (typeof window !== "undefined") {
-      return localStorage.getItem("lang") || "en";
-    }
-    return "en";
-  });
+  const [lang, setLang] = useState("ge");
+  const [mounted, setMounted] = useState(false);
   const tr = t[lang];
   const router = useRouter();
 
@@ -124,6 +120,9 @@ export default function Dashboard() {
   }, [router]);
 
   useEffect(() => {
+    const saved = localStorage.getItem("lang") || "ge";
+    setLang(saved);
+    setMounted(true);
     loadDashboard();
   }, [loadDashboard]);
 
@@ -179,7 +178,7 @@ export default function Dashboard() {
     router.push("/portal");
   }
 
-  if (loading)
+  if (!mounted || loading)
     return (
       <div
         style={{
