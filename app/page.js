@@ -32,7 +32,7 @@ const translations = {
       { val: "Free", label: "No registration" },
     ],
     findMedicine: "Find Medicine",
-    portal: "Pharmacy Portal",
+    portal: "For Pharmacy",
     generic: "Generic",
     location: "Vake, Tbilisi",
     locating: "Locating...",
@@ -68,7 +68,7 @@ const translations = {
       { val: "უფასო", label: "დაურეგისტრირებელი" },
     ],
     findMedicine: "წამლის ძიება",
-    portal: "აფთიაქის პორტალი",
+    portal: "აფთიაქებისთვის",
     generic: "გენერიკული",
     location: "ვაკე, თბილისი",
     locating: "მდებარეობა...",
@@ -162,9 +162,9 @@ export default function Home() {
   const [searched, setSearched] = useState(false);
   const [lang, setLang] = useState(() => {
     if (typeof window !== "undefined") {
-      return localStorage.getItem("lang") || "en";
+      return localStorage.getItem("lang") || "ge";
     }
-    return "en";
+    return "ge";
   });
   const [chatMessage, setChatMessage] = useState("");
   const [chatReply, setChatReply] = useState("");
