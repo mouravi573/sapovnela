@@ -146,13 +146,6 @@ export default function Champions() {
   const [champions, setChampions] = useState({});
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const saved = localStorage.getItem("lang") || "ge";
-    setLang(saved);
-    setMounted(true);
-    fetchChampions();
-  }, []);
-
   async function fetchChampions() {
     const results = {};
     for (const sector of SECTORS) {
@@ -187,6 +180,13 @@ export default function Champions() {
     setChampions(results);
     setLoading(false);
   }
+
+  useEffect(() => {
+    const saved = localStorage.getItem("lang") || "ge";
+    setLang(saved);
+    setMounted(true);
+    fetchChampions();
+  }, []);
 
   if (!mounted) return null;
 
