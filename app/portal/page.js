@@ -14,23 +14,15 @@ const pt = {
     cta: "Register your pharmacy — free",
     alreadyReg: "Already registered?",
     signIn: "Sign in →",
-    benefits: [
-      {
-        icon: "👁",
-        title: "Get discovered",
-        desc: "Appear in search results when patients look for medicines in your area",
-      },
-      {
-        icon: "💰",
-        title: "Compete on price",
-        desc: "Show your prices and beat the big chains on generics and common medicines",
-      },
-      {
-        icon: "📍",
-        title: "Drive foot traffic",
-        desc: "Patients get directions straight to your pharmacy with one tap",
-      },
-    ],
+    b1title: "Get discovered",
+    b1desc: "Join the platform and appear in thousands of patient searches",
+    b1stat1: "Registered pharmacies",
+    b1stat2: "Medicines in database",
+    b2title: "Compete on price",
+    b2desc: "These are the current best prices on the platform",
+    b2badge: "Cheapest",
+    b3title: "Drive foot traffic",
+    b3desc: "Patients see your location and come easily",
     statPharmacies: "Registered pharmacies",
     statMedicines: "Medicines in database",
     statListings: "Active listings",
@@ -80,23 +72,15 @@ const pt = {
     cta: "დაარეგისტრირე აფთიაქი — უფასოდ",
     alreadyReg: "უკვე დარეგისტრირებული ხარ?",
     signIn: "შესვლა →",
-    benefits: [
-      {
-        icon: "👁",
-        title: "გახდი ხილული",
-        desc: "გამოჩნდი ძიების შედეგებში, როცა პაციენტები ეძებენ წამალს შენს მიმდებარედ",
-      },
-      {
-        icon: "💰",
-        title: "აჯობე ფასით",
-        desc: "იყავი დიდ ქსელებზე კონკურენტული",
-      },
-      {
-        icon: "📍",
-        title: "მოიზიდე მომხმარებლები",
-        desc: "პაციენტები ნახავენ შენი აფთიაქის მდებარეობას ერთი დაწკაპუნებით",
-      },
-    ],
+    b1title: "გახდი ხილული",
+    b1desc: "შეუერთდი პლატფორმას და გამოჩნდი ათასობით პაციენტის ძიებაში",
+    b1stat1: "დარეგისტრირებული აფთიაქი",
+    b1stat2: "წამალი ბაზაში",
+    b2title: "აჯობე ფასით",
+    b2desc: "ეს არის ამჟამინდელი საუკეთესო ფასები პლატფორმაზე",
+    b2badge: "იაფი",
+    b3title: "მოიზიდე მომხმარებლები",
+    b3desc: "პაციენტები ხედავენ შენს მდებარეობას და მარტივად მოდიან",
     statPharmacies: "დარეგისტრირებული აფთიაქი",
     statMedicines: "წამალი ბაზაში",
     statListings: "აქტიური განცხადება",
@@ -150,6 +134,17 @@ const districts = [
   "Chugureti",
   "Krtsanisi",
 ];
+const TOP_MEDICINES = ["Ibuprofen", "Paracetamol", "Amoxicillin", "Metformin"];
+
+function toSVG(lat, lng) {
+  const minLat = 41.65,
+    maxLat = 41.8,
+    minLng = 44.73,
+    maxLng = 44.88;
+  const x = ((lng - minLng) / (maxLng - minLng)) * 260 + 20;
+  const y = ((maxLat - lat) / (maxLat - minLat)) * 130 + 15;
+  return { x, y };
+}
 
 export default function PharmacyPortal() {
   const [step, setStep] = useState("landing");
@@ -169,12 +164,15 @@ export default function PharmacyPortal() {
     medicines: 0,
     listings: 0,
   });
+  const [cheapestPrices, setCheapestPrices] = useState([]);
+  const [pharmacyCoords, setPharmacyCoords] = useState([]);
 
   useEffect(() => {
     const saved = localStorage.getItem("lang") || "ge";
     setLang(saved);
     setMounted(true);
-    async function fetchStats() {
+
+    async function fetchData() {
       const [{ count: pharmacies }, { count: medicines }, { count: listings }] =
         await Promise.all([
           supabase
@@ -192,12 +190,46 @@ export default function PharmacyPortal() {
         medicines: medicines || 0,
         listings: listings || 0,
       });
+
+      const prices = [];
+      for (const name of TOP_MEDICINES) {
+        const { data: med } = await supabase
+          .from("medicines")
+          .select("id, name, dosage, form")
+          .ilike("name", `%${name}%`)
+          .limit(1)
+          .maybeSingle();
+        if (med) {
+          const { data: inv } = await supabase
+            .from("inventory")
+            .select("price")
+            .eq("medicine_id", med.id)
+            .eq("in_stock", true)
+            .order("price", { ascending: true })
+            .limit(1)
+            .maybeSingle();
+          if (inv)
+            prices.push({
+              name: med.name,
+              dosage: med.dosage,
+              form: med.form,
+              price: inv.price,
+            });
+        }
+      }
+      setCheapestPrices(prices);
+
+      const { data: coords } = await supabase
+        .from("pharmacies")
+        .select("lat, lng")
+        .not("lat", "is", null)
+        .limit(20);
+      setPharmacyCoords(coords || []);
     }
-    fetchStats();
+    fetchData();
   }, []);
 
   const t = pt[lang];
-
   function update(field, value) {
     setForm((prev) => ({ ...prev, [field]: value }));
   }
@@ -222,6 +254,7 @@ export default function PharmacyPortal() {
         is_independent: true,
         rating: 0,
         user_id: authData.user.id,
+        is_approved: false,
       });
       if (dbError) throw dbError;
       setStep("success");
@@ -240,6 +273,8 @@ export default function PharmacyPortal() {
         fontFamily: "system-ui, sans-serif",
       }}
     >
+      <style>{`.benefit-card:hover{transform:scale(1.03);box-shadow:0 16px 40px rgba(0,0,0,0.1)}`}</style>
+
       <nav
         style={{
           background: "#fff",
@@ -294,11 +329,10 @@ export default function PharmacyPortal() {
           <div
             style={{
               display: "flex",
-              alignItems: "center",
-              background: "#EBF6F4",
+              background: "#C5E4F5",
               borderRadius: "20px",
-              padding: "3px",
-              gap: "2px",
+              padding: "4px",
+              gap: "3px",
             }}
           >
             {["en", "ge"].map((l) => (
@@ -310,13 +344,14 @@ export default function PharmacyPortal() {
                 }}
                 style={{
                   fontSize: "12px",
-                  fontWeight: lang === l ? 600 : 400,
-                  padding: "4px 12px",
+                  fontWeight: 700,
+                  padding: "5px 14px",
                   borderRadius: "16px",
                   border: "none",
                   cursor: "pointer",
                   background: lang === l ? "#2A7A6E" : "transparent",
-                  color: lang === l ? "#fff" : "#6BA89E",
+                  color: lang === l ? "#fff" : "#0F4D3A",
+                  transition: "transform 0.8s cubic-bezier(0.25,1.4,0.5,1)",
                 }}
               >
                 {l === "en" ? "EN" : "ქარ"}
@@ -402,50 +437,367 @@ export default function PharmacyPortal() {
             </div>
           </div>
 
+          {/* Benefit cards */}
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "repeat(3,1fr)",
-              gap: "16px",
+              gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+              gap: "20px",
               marginBottom: "48px",
             }}
           >
-            {t.benefits.map((b) => (
+            {/* Card 1 */}
+            <div
+              className="benefit-card"
+              style={{
+                background: "#E8F8F2",
+                border: "1px solid #A8D9D0",
+                borderRadius: "20px",
+                padding: "24px",
+                transition:
+                  "transform 0.8s cubic-bezier(0.25,1.4,0.5,1), box-shadow 0.8s cubic-bezier(0.25,1.4,0.5,1)",
+              }}
+            >
               <div
-                key={b.title}
                 style={{
-                  background: "#fff",
-                  border: "1px solid #D0EBE7",
+                  width: "48px",
+                  height: "48px",
                   borderRadius: "14px",
-                  padding: "24px",
+                  background: "#C5EEE1",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: "22px",
+                  marginBottom: "16px",
                 }}
               >
-                <div style={{ fontSize: "28px", marginBottom: "10px" }}>
-                  {b.icon}
-                </div>
-                <div
-                  style={{
-                    fontSize: "14px",
-                    fontWeight: 700,
-                    color: "#1A3A35",
-                    marginBottom: "6px",
-                  }}
-                >
-                  {b.title}
-                </div>
-                <div
-                  style={{
-                    fontSize: "13px",
-                    color: "#7AABA5",
-                    lineHeight: 1.5,
-                  }}
-                >
-                  {b.desc}
-                </div>
+                👁
               </div>
-            ))}
+              <div
+                style={{
+                  fontSize: "16px",
+                  fontWeight: 700,
+                  color: "#1A3A35",
+                  marginBottom: "6px",
+                }}
+              >
+                {t.b1title}
+              </div>
+              <div
+                style={{
+                  fontSize: "12px",
+                  color: "#5A8A82",
+                  marginBottom: "16px",
+                  lineHeight: 1.5,
+                }}
+              >
+                {t.b1desc}
+              </div>
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  background: "rgba(255,255,255,0.7)",
+                  borderRadius: "10px",
+                  padding: "10px 14px",
+                  marginBottom: "8px",
+                }}
+              >
+                <span style={{ fontSize: "12px", color: "#5A8A82" }}>
+                  {t.b1stat1}
+                </span>
+                <span
+                  style={{
+                    fontSize: "20px",
+                    fontWeight: 700,
+                    color: "#2A7A6E",
+                  }}
+                >
+                  {liveStats.pharmacies}
+                </span>
+              </div>
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  background: "rgba(255,255,255,0.7)",
+                  borderRadius: "10px",
+                  padding: "10px 14px",
+                }}
+              >
+                <span style={{ fontSize: "12px", color: "#5A8A82" }}>
+                  {t.b1stat2}
+                </span>
+                <span
+                  style={{
+                    fontSize: "20px",
+                    fontWeight: 700,
+                    color: "#2A7A6E",
+                  }}
+                >
+                  {liveStats.medicines}
+                </span>
+              </div>
+            </div>
+
+            {/* Card 2 */}
+            <div
+              className="benefit-card"
+              style={{
+                background: "#FEF9EC",
+                border: "1px solid #FFD97A",
+                borderRadius: "20px",
+                padding: "24px",
+                transition:
+                  "transform 0.8s cubic-bezier(0.25,1.4,0.5,1), box-shadow 0.8s cubic-bezier(0.25,1.4,0.5,1)",
+              }}
+            >
+              <div
+                style={{
+                  width: "48px",
+                  height: "48px",
+                  borderRadius: "14px",
+                  background: "#FDE68A",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: "22px",
+                  marginBottom: "16px",
+                }}
+              >
+                💰
+              </div>
+              <div
+                style={{
+                  fontSize: "16px",
+                  fontWeight: 700,
+                  color: "#1A3A35",
+                  marginBottom: "6px",
+                }}
+              >
+                {t.b2title}
+              </div>
+              <div
+                style={{
+                  fontSize: "12px",
+                  color: "#92740A",
+                  marginBottom: "16px",
+                  lineHeight: 1.5,
+                }}
+              >
+                {t.b2desc}
+              </div>
+              {(cheapestPrices.length > 0
+                ? cheapestPrices
+                : [
+                    {
+                      name: "Ibuprofen",
+                      dosage: "400mg",
+                      form: "tablet",
+                      price: 0.9,
+                    },
+                    {
+                      name: "Paracetamol",
+                      dosage: "500mg",
+                      form: "tablet",
+                      price: 0.6,
+                    },
+                    {
+                      name: "Amoxicillin",
+                      dosage: "500mg",
+                      form: "capsule",
+                      price: 1.6,
+                    },
+                    {
+                      name: "Metformin",
+                      dosage: "850mg",
+                      form: "tablet",
+                      price: 0.45,
+                    },
+                  ]
+              ).map((m, i, arr) => (
+                <div
+                  key={i}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    padding: "8px 0",
+                    borderBottom:
+                      i < arr.length - 1
+                        ? "1px solid rgba(0,0,0,0.06)"
+                        : "none",
+                  }}
+                >
+                  <div>
+                    <div
+                      style={{
+                        fontSize: "12px",
+                        fontWeight: 500,
+                        color: "#1A3A35",
+                      }}
+                    >
+                      {m.name}
+                    </div>
+                    <div style={{ fontSize: "11px", color: "#9ABFBB" }}>
+                      {m.dosage} · {m.form}
+                    </div>
+                  </div>
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "6px",
+                    }}
+                  >
+                    <span
+                      style={{
+                        fontSize: "14px",
+                        fontWeight: 700,
+                        color: "#B45309",
+                      }}
+                    >
+                      {m.price.toFixed(2)} ₾
+                    </span>
+                    <span
+                      style={{
+                        fontSize: "10px",
+                        background: "#FFF3E0",
+                        color: "#C47D00",
+                        border: "1px solid #FFD97A",
+                        padding: "2px 7px",
+                        borderRadius: "6px",
+                      }}
+                    >
+                      {t.b2badge}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Card 3 */}
+            <div
+              className="benefit-card"
+              style={{
+                background: "#EAF4FD",
+                border: "1px solid #90CAF9",
+                borderRadius: "20px",
+                padding: "24px",
+                transition:
+                  "transform 0.8s cubic-bezier(0.25,1.4,0.5,1), box-shadow 0.8s cubic-bezier(0.25,1.4,0.5,1)",
+              }}
+            >
+              <div
+                style={{
+                  width: "48px",
+                  height: "48px",
+                  borderRadius: "14px",
+                  background: "#BFDFFA",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: "22px",
+                  marginBottom: "16px",
+                }}
+              >
+                📍
+              </div>
+              <div
+                style={{
+                  fontSize: "16px",
+                  fontWeight: 700,
+                  color: "#1A3A35",
+                  marginBottom: "6px",
+                }}
+              >
+                {t.b3title}
+              </div>
+              <div
+                style={{
+                  fontSize: "12px",
+                  color: "#1E6091",
+                  marginBottom: "12px",
+                  lineHeight: 1.5,
+                }}
+              >
+                {t.b3desc}
+              </div>
+              <svg
+                width="100%"
+                height="150"
+                viewBox="0 0 300 150"
+                style={{ borderRadius: "12px", background: "#D6EEF8" }}
+              >
+                <path
+                  d="M50 75 Q150 55 250 75"
+                  stroke="#90CAF9"
+                  strokeWidth="3"
+                  fill="none"
+                />
+                <path
+                  d="M150 15 Q140 75 150 135"
+                  stroke="#90CAF9"
+                  strokeWidth="2"
+                  fill="none"
+                />
+                <path
+                  d="M80 35 Q150 75 220 115"
+                  stroke="#90CAF9"
+                  strokeWidth="2"
+                  fill="none"
+                />
+                {(pharmacyCoords.length > 0
+                  ? pharmacyCoords
+                  : [
+                      { lat: 41.701, lng: 44.768 },
+                      { lat: 41.721, lng: 44.753 },
+                      { lat: 41.693, lng: 44.799 },
+                      { lat: 41.738, lng: 44.785 },
+                      { lat: 41.687, lng: 44.82 },
+                    ]
+                ).map((ph, i) => {
+                  const { x, y } = toSVG(ph.lat, ph.lng);
+                  return (
+                    <circle
+                      key={i}
+                      cx={x}
+                      cy={y}
+                      r="7"
+                      fill="#2A7A6E"
+                      stroke="#fff"
+                      strokeWidth="2.5"
+                    />
+                  );
+                })}
+                <circle
+                  cx="240"
+                  cy="100"
+                  r="7"
+                  fill="none"
+                  stroke="#90CAF9"
+                  strokeWidth="2"
+                  strokeDasharray="3 2"
+                />
+                <text
+                  x="240"
+                  y="118"
+                  textAnchor="middle"
+                  fontSize="9"
+                  fill="#7AABA5"
+                >
+                  Gldani?
+                </text>
+                <text x="10" y="145" fontSize="9" fill="#7AABA5">
+                  თბილისი · Tbilisi
+                </text>
+              </svg>
+            </div>
           </div>
 
+          {/* Stats ribbon */}
           <div
             style={{
               background: "#2A7A6E",
@@ -514,7 +866,6 @@ export default function PharmacyPortal() {
             >
               {t.registerSub}
             </p>
-
             {t.fields.map((f) => (
               <div key={f.field} style={{ marginBottom: "16px" }}>
                 <label
@@ -547,7 +898,6 @@ export default function PharmacyPortal() {
                 />
               </div>
             ))}
-
             <div style={{ marginBottom: "20px" }}>
               <label
                 style={{
@@ -582,7 +932,6 @@ export default function PharmacyPortal() {
                 ))}
               </select>
             </div>
-
             <button
               onClick={handleRegister}
               style={{
