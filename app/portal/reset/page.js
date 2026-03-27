@@ -39,7 +39,12 @@ export default function ResetPassword() {
   const [sent, setSent] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [lang, setLang] = useState("en");
+  const [lang, setLang] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("lang") || "en";
+    }
+    return "en";
+  });
   const tr = t[lang];
 
   async function handleReset() {
@@ -129,7 +134,10 @@ export default function ResetPassword() {
             {["en", "ge"].map((l) => (
               <button
                 key={l}
-                onClick={() => setLang(l)}
+                onClick={() => {
+                  setLang(l);
+                  localStorage.setItem("lang", l);
+                }}
                 style={{
                   fontSize: "12px",
                   fontWeight: lang === l ? 600 : 400,

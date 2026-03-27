@@ -153,7 +153,12 @@ const districts = [
 
 export default function PharmacyPortal() {
   const [step, setStep] = useState("landing");
-  const [lang, setLang] = useState("en");
+  const [lang, setLang] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("lang") || "en";
+    }
+    return "en";
+  });
   const [form, setForm] = useState({
     name: "",
     address: "",
@@ -298,7 +303,10 @@ export default function PharmacyPortal() {
             {["en", "ge"].map((l) => (
               <button
                 key={l}
-                onClick={() => setLang(l)}
+                onClick={() => {
+                  setLang(l);
+                  localStorage.setItem("lang", l);
+                }}
                 style={{
                   fontSize: "12px",
                   fontWeight: lang === l ? 600 : 400,

@@ -160,7 +160,12 @@ export default function Home() {
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
-  const [lang, setLang] = useState("en");
+  const [lang, setLang] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("lang") || "en";
+    }
+    return "en";
+  });
   const [chatMessage, setChatMessage] = useState("");
   const [chatReply, setChatReply] = useState("");
   const [chatLoading, setChatLoading] = useState(false);
@@ -285,7 +290,10 @@ export default function Home() {
           {["en", "ge"].map((l) => (
             <button
               key={l}
-              onClick={() => setLang(l)}
+              onClick={() => {
+                setLang(l);
+                localStorage.setItem("lang", l);
+              }}
               style={{
                 fontSize: "12px",
                 fontWeight: lang === l ? 600 : 400,
@@ -310,13 +318,14 @@ export default function Home() {
             color: "#fff",
             border: "none",
             borderRadius: "20px",
-            padding: "8px 16px",
+            padding: "8px 12px",
             cursor: "pointer",
             fontWeight: 600,
             whiteSpace: "nowrap",
+            display: "block",
           }}
         >
-          {t.portal}
+          {lang === "en" ? "Portal" : "პორტალი"}
         </button>
       </nav>
 
