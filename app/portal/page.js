@@ -449,11 +449,13 @@ export default function PharmacyPortal() {
             {/* Card 1 */}
             <div
               className="benefit-card"
+              onClick={() => setStep("register")}
               style={{
                 background: "#E8F8F2",
                 border: "1px solid #A8D9D0",
                 borderRadius: "20px",
                 padding: "24px",
+                cursor: "pointer",
                 transition:
                   "transform 0.8s cubic-bezier(0.25,1.4,0.5,1), box-shadow 0.8s cubic-bezier(0.25,1.4,0.5,1)",
               }}
@@ -681,11 +683,13 @@ export default function PharmacyPortal() {
             {/* Card 3 */}
             <div
               className="benefit-card"
+              onClick={() => (window.location.href = "/search?map=1")}
               style={{
                 background: "#EAF4FD",
                 border: "1px solid #90CAF9",
                 borderRadius: "20px",
                 padding: "24px",
+                cursor: "pointer",
                 transition:
                   "transform 0.8s cubic-bezier(0.25,1.4,0.5,1), box-shadow 0.8s cubic-bezier(0.25,1.4,0.5,1)",
               }}
