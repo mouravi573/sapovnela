@@ -4,13 +4,14 @@ import { NextResponse } from "next/server";
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
   const raw = searchParams.get("q") || "";
+  const district = searchParams.get("district") || null;
 
-  // Fix 1: reject empty or suspiciously long queries
+  // Reject empty or suspiciously long queries
   if (!raw.trim() || raw.length > 100) {
     return NextResponse.json({ data: [] });
   }
 
-  // Fix 2: strip special characters, keep letters, numbers, spaces, Georgian script
+  // Strip special characters, keep letters, numbers, spaces, Georgian script
   const query = raw.replace(/[^\w\s\u10D0-\u10FF\-]/g, "").trim();
 
   if (!query) return NextResponse.json({ data: [] });
@@ -23,6 +24,12 @@ export async function GET(request) {
     );
 
   if (!medicines || medicines.length === 0) {
+    // Log zero-result search
+    await supabase.from("search_logs").insert({
+      query,
+      results_count: 0,
+      district,
+    });
     return NextResponse.json({ data: [] });
   }
 
@@ -41,10 +48,17 @@ export async function GET(request) {
     )
     .in("medicine_id", medicineIds)
     .eq("in_stock", true)
-    // Fix 3: only show approved pharmacies
     .eq("pharmacies.is_approved", true)
     .order("price", { ascending: true });
 
   if (error) return NextResponse.json({ error }, { status: 500 });
+
+  // Log successful search
+  await supabase.from("search_logs").insert({
+    query,
+    results_count: data?.length || 0,
+    district,
+  });
+
   return NextResponse.json({ data });
 }
