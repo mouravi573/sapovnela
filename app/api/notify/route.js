@@ -26,7 +26,10 @@ export async function POST(request) {
 
     return NextResponse.json({ ok: true });
   } catch (err) {
-    console.error("WhatsApp notification failed:", err);
-    return NextResponse.json({ ok: false }, { status: 500 });
+    console.error("WhatsApp notification failed:", err.message);
+    return NextResponse.json(
+      { ok: false, error: err.message },
+      { status: 500 },
+    );
   }
 }
