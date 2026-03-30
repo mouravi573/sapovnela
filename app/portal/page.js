@@ -257,6 +257,18 @@ export default function PharmacyPortal() {
         is_approved: false,
       });
       if (dbError) throw dbError;
+      // Send WhatsApp notification
+      fetch("/api/notify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: form.name,
+          address: form.address,
+          district: form.district,
+          phone: form.phone,
+          email: form.email,
+        }),
+      });
       setStep("success");
     } catch (err) {
       alert("Registration failed: " + err.message);
