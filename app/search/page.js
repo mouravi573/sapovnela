@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import dynamic from "next/dynamic";
 
 const MapView = dynamic(() => import("../../components/MapView"), {
@@ -171,12 +171,14 @@ export default function Search() {
   const [showDistricts, setShowDistricts] = useState(false);
   const [customDistrict, setCustomDistrict] = useState(null);
   const [allPharmaciesForMap, setAllPharmaciesForMap] = useState([]);
+  const [suggestions, setSuggestions] = useState([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const debounceRef = useRef(null);
 
   useEffect(() => {
     const saved = localStorage.getItem("lang") || "ge";
     setLang(saved);
     setMounted(true);
-    // Auto-show map and load ALL pharmacies when coming from portal card
     if (window.location.search.includes("map=1")) {
       setShowMap(true);
       import("../../lib/supabase").then(({ supabase }) => {
@@ -193,12 +195,14 @@ export default function Search() {
 
   const t = translations[lang];
 
-  async function handleSearch() {
-    if (!query.trim()) return;
+  async function handleSearch(searchQuery) {
+    const q = searchQuery || query;
+    if (!q.trim()) return;
     setLoading(true);
     setSearched(true);
+    setShowSuggestions(false);
     try {
-      const res = await fetch(`/api/search?q=${query}`);
+      const res = await fetch(`/api/search?q=${q}`);
       const json = await res.json();
       setResults(json.data || []);
     } catch {
@@ -209,6 +213,33 @@ export default function Search() {
 
   function handleKeyDown(e) {
     if (e.key === "Enter") handleSearch();
+  }
+
+  async function handleQueryChange(val) {
+    setQuery(val);
+    if (val.length < 2) {
+      setSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
+    clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/suggestions?q=${val}`);
+        const json = await res.json();
+        setSuggestions(json.data || []);
+        setShowSuggestions(true);
+      } catch {
+        setSuggestions([]);
+      }
+    }, 300);
+  }
+
+  function selectSuggestion(med) {
+    setQuery(med.name);
+    setSuggestions([]);
+    setShowSuggestions(false);
+    handleSearch(med.name);
   }
 
   function getLocation() {
@@ -407,167 +438,241 @@ export default function Search() {
           {t.subtitle}
         </p>
 
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "8px",
-            border: "2px solid #D0EBE7",
-            borderRadius: "16px",
-            padding: "6px 6px 6px 14px",
-            background: "#fff",
-            flexWrap: "wrap",
-          }}
-        >
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 16 16"
-            fill="none"
-            style={{ flexShrink: 0 }}
-          >
-            <circle cx="7" cy="7" r="5" stroke="#9ABFBB" strokeWidth="1.5" />
-            <path
-              d="M11 11l2.5 2.5"
-              stroke="#9ABFBB"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-            />
-          </svg>
-          <input
-            type="text"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder={t.placeholder}
+        {/* Search bar with autocomplete */}
+        <div style={{ position: "relative" }}>
+          <div
             style={{
-              flex: 1,
-              minWidth: "120px",
-              border: "none",
-              outline: "none",
-              fontSize: "15px",
-              color: "#1A3A35",
-              background: "transparent",
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+              border: "2px solid #D0EBE7",
+              borderRadius: "16px",
+              padding: "6px 6px 6px 14px",
+              background: "#fff",
+              flexWrap: "wrap",
             }}
-          />
-          <div style={{ position: "relative", flexShrink: 0 }}>
-            <div
-              onClick={() => setShowDistricts(!showDistricts)}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "5px",
-                background: userLocation ? "#2A7A6E" : "#EBF6F4",
-                border: "1px solid #A8D9D0",
-                color: userLocation ? "#fff" : "#2A7A6E",
-                padding: "5px 10px",
-                borderRadius: "12px",
-                fontSize: "12px",
-                fontWeight: 500,
-                cursor: "pointer",
-              }}
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 16 16"
+              fill="none"
+              style={{ flexShrink: 0 }}
             >
+              <circle cx="7" cy="7" r="5" stroke="#9ABFBB" strokeWidth="1.5" />
+              <path
+                d="M11 11l2.5 2.5"
+                stroke="#9ABFBB"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+              />
+            </svg>
+            <input
+              type="text"
+              value={query}
+              onChange={(e) => handleQueryChange(e.target.value)}
+              onKeyDown={handleKeyDown}
+              onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
+              onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
+              placeholder={t.placeholder}
+              style={{
+                flex: 1,
+                minWidth: "120px",
+                border: "none",
+                outline: "none",
+                fontSize: "15px",
+                color: "#1A3A35",
+                background: "transparent",
+              }}
+            />
+
+            <div style={{ position: "relative", flexShrink: 0 }}>
               <div
+                onClick={() => setShowDistricts(!showDistricts)}
                 style={{
-                  width: "7px",
-                  height: "7px",
-                  borderRadius: "50%",
-                  background: userLocation ? "#fff" : "#2A7A6E",
-                }}
-              ></div>
-              {locating
-                ? t.locating
-                : userLocation
-                  ? t.yourLocation
-                  : customDistrict
-                    ? customDistrict
-                    : t.location}
-              <span style={{ fontSize: "10px", marginLeft: "2px" }}>▾</span>
-            </div>
-            {showDistricts && (
-              <div
-                style={{
-                  position: "absolute",
-                  top: "36px",
-                  right: 0,
-                  zIndex: 100,
-                  background: "#fff",
-                  border: "1px solid #D0EBE7",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "5px",
+                  background: userLocation ? "#2A7A6E" : "#EBF6F4",
+                  border: "1px solid #A8D9D0",
+                  color: userLocation ? "#fff" : "#2A7A6E",
+                  padding: "5px 10px",
                   borderRadius: "12px",
-                  padding: "8px",
-                  boxShadow: "0 4px 16px rgba(0,0,0,0.1)",
-                  minWidth: "180px",
+                  fontSize: "12px",
+                  fontWeight: 500,
+                  cursor: "pointer",
                 }}
               >
                 <div
-                  onClick={() => {
-                    getLocation();
-                    setShowDistricts(false);
-                  }}
                   style={{
-                    padding: "8px 12px",
-                    fontSize: "13px",
-                    cursor: "pointer",
-                    color: "#2A7A6E",
-                    fontWeight: 600,
-                    borderRadius: "8px",
-                    background: "#EBF6F4",
-                    marginBottom: "6px",
+                    width: "7px",
+                    height: "7px",
+                    borderRadius: "50%",
+                    background: userLocation ? "#fff" : "#2A7A6E",
+                  }}
+                ></div>
+                {locating
+                  ? t.locating
+                  : userLocation
+                    ? t.yourLocation
+                    : customDistrict
+                      ? customDistrict
+                      : t.location}
+                <span style={{ fontSize: "10px", marginLeft: "2px" }}>▾</span>
+              </div>
+              {showDistricts && (
+                <div
+                  style={{
+                    position: "absolute",
+                    top: "36px",
+                    right: 0,
+                    zIndex: 100,
+                    background: "#fff",
+                    border: "1px solid #D0EBE7",
+                    borderRadius: "12px",
+                    padding: "8px",
+                    boxShadow: "0 4px 16px rgba(0,0,0,0.1)",
+                    minWidth: "180px",
                   }}
                 >
-                  📍 {lang === "en" ? "Use my GPS" : "GPS-ის გამოყენება"}
-                </div>
-                {[
-                  "Vake",
-                  "Saburtalo",
-                  "Mtatsminda",
-                  "Isani",
-                  "Samgori",
-                  "Didube",
-                  "Nadzaladevi",
-                  "Gldani",
-                  "Chugureti",
-                  "Krtsanisi",
-                ].map((d) => (
                   <div
-                    key={d}
                     onClick={() => {
-                      setUserLocation(null);
-                      setCustomDistrict(d);
+                      getLocation();
                       setShowDistricts(false);
                     }}
                     style={{
-                      padding: "7px 12px",
+                      padding: "8px 12px",
                       fontSize: "13px",
                       cursor: "pointer",
-                      color: "#1A3A35",
+                      color: "#2A7A6E",
+                      fontWeight: 600,
                       borderRadius: "8px",
-                      background:
-                        customDistrict === d ? "#EBF6F4" : "transparent",
+                      background: "#EBF6F4",
+                      marginBottom: "6px",
                     }}
                   >
-                    {d}
+                    📍 {lang === "en" ? "Use my GPS" : "GPS-ის გამოყენება"}
                   </div>
-                ))}
-              </div>
-            )}
+                  {[
+                    "Vake",
+                    "Saburtalo",
+                    "Mtatsminda",
+                    "Isani",
+                    "Samgori",
+                    "Didube",
+                    "Nadzaladevi",
+                    "Gldani",
+                    "Chugureti",
+                    "Krtsanisi",
+                  ].map((d) => (
+                    <div
+                      key={d}
+                      onClick={() => {
+                        setUserLocation(null);
+                        setCustomDistrict(d);
+                        setShowDistricts(false);
+                      }}
+                      style={{
+                        padding: "7px 12px",
+                        fontSize: "13px",
+                        cursor: "pointer",
+                        color: "#1A3A35",
+                        borderRadius: "8px",
+                        background:
+                          customDistrict === d ? "#EBF6F4" : "transparent",
+                      }}
+                    >
+                      {d}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <button
+              onClick={() => handleSearch()}
+              style={{
+                background: "#2A7A6E",
+                color: "#fff",
+                border: "none",
+                borderRadius: "12px",
+                padding: "10px 20px",
+                fontSize: "14px",
+                fontWeight: 700,
+                cursor: "pointer",
+                flexShrink: 0,
+              }}
+            >
+              {t.search}
+            </button>
           </div>
-          <button
-            onClick={handleSearch}
-            style={{
-              background: "#2A7A6E",
-              color: "#fff",
-              border: "none",
-              borderRadius: "12px",
-              padding: "10px 20px",
-              fontSize: "14px",
-              fontWeight: 700,
-              cursor: "pointer",
-              flexShrink: 0,
-            }}
-          >
-            {t.search}
-          </button>
+
+          {/* Autocomplete dropdown */}
+          {showSuggestions && suggestions.length > 0 && (
+            <div
+              style={{
+                position: "absolute",
+                top: "100%",
+                left: 0,
+                right: 0,
+                background: "#fff",
+                border: "1px solid #D0EBE7",
+                borderRadius: "12px",
+                boxShadow: "0 8px 24px rgba(0,0,0,0.1)",
+                zIndex: 200,
+                marginTop: "4px",
+                overflow: "hidden",
+              }}
+            >
+              {suggestions.map((med) => (
+                <div
+                  key={med.id}
+                  onMouseDown={() => selectSuggestion(med)}
+                  style={{
+                    padding: "10px 16px",
+                    cursor: "pointer",
+                    borderBottom: "1px solid #F4FBFA",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    background: "#fff",
+                  }}
+                  onMouseEnter={(e) =>
+                    (e.currentTarget.style.background = "#EBF6F4")
+                  }
+                  onMouseLeave={(e) =>
+                    (e.currentTarget.style.background = "#fff")
+                  }
+                >
+                  <div>
+                    <div
+                      style={{
+                        fontSize: "13px",
+                        fontWeight: 600,
+                        color: "#1A3A35",
+                      }}
+                    >
+                      {med.name}
+                    </div>
+                    {med.name_ge && (
+                      <div style={{ fontSize: "11px", color: "#2A7A6E" }}>
+                        {med.name_ge}
+                      </div>
+                    )}
+                  </div>
+                  <div
+                    style={{
+                      fontSize: "11px",
+                      color: "#9ABFBB",
+                      textAlign: "right",
+                    }}
+                  >
+                    {med.dosage} · {med.form}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         <div
@@ -588,7 +693,10 @@ export default function Search() {
           ].map((tag) => (
             <span
               key={tag}
-              onClick={() => setQuery(tag)}
+              onClick={() => {
+                setQuery(tag);
+                handleSearch(tag);
+              }}
               style={{
                 background: "#EBF6F4",
                 color: "#2A7A6E",
@@ -791,7 +899,7 @@ export default function Search() {
           </div>
         )}
 
-        {showMap && (
+        {showMap && mapPharmacies.length > 0 && (
           <div
             style={{
               marginBottom: "20px",
