@@ -22,10 +22,14 @@ const translations = {
     pharmaciesInStock: (n) => `${n} pharmacies in stock`,
     from: "from",
     cheapest: "Cheapest",
+    cheapestLabel: "💰 Cheapest",
+    nearestLabel: "📍 Nearest",
     independent: "Independent",
     directions: "Directions",
     searching: "Searching pharmacies near you...",
     noResults: (q) => `No results found for ${q}`,
+    otherOptions: "Other options",
+    results: (n) => `${n} result${n !== 1 ? "s" : ""} · sorted by price`,
     stats: [
       { val: "474", label: "Medicines tracked" },
       { val: "124", label: "Pharmacies listed" },
@@ -58,10 +62,14 @@ const translations = {
     pharmaciesInStock: (n) => `${n} აფთიაქში მარაგშია`,
     from: "დან",
     cheapest: "ყველაზე იაფი",
+    cheapestLabel: "💰 ყველაზე იაფი",
+    nearestLabel: "📍 ყველაზე ახლო",
     independent: "დამოუკიდებელი",
     directions: "მარშრუტი",
     searching: "ვეძებ მახლობელ აფთიაქებს ...",
     noResults: (q) => `ვერ მოიძებნა: ${q}`,
+    otherOptions: "სხვა ვარიანტები",
+    results: (n) => `${n} შედეგი · ფასით დალაგებული`,
     stats: [
       { val: "474", label: "წამალი" },
       { val: "124", label: "აფთიაქი" },
@@ -152,7 +160,9 @@ function getDistance(lat1, lng1, lat2, lng2) {
       Math.cos((lat2 * Math.PI) / 180) *
       Math.sin(dLng / 2) *
       Math.sin(dLng / 2);
-  return (R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))).toFixed(1);
+  return parseFloat(
+    (R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))).toFixed(1),
+  );
 }
 
 export default function Search() {
@@ -202,7 +212,8 @@ export default function Search() {
     setSearched(true);
     setShowSuggestions(false);
     try {
-      const res = await fetch(`/api/search?q=${q}`);
+      const districtParam = customDistrict ? `&district=${customDistrict}` : "";
+      const res = await fetch(`/api/search?q=${q}${districtParam}`);
       const json = await res.json();
       setResults(json.data || []);
     } catch {
@@ -228,7 +239,7 @@ export default function Search() {
         const res = await fetch(`/api/suggestions?q=${val}`);
         const json = await res.json();
         setSuggestions(json.data || []);
-        setShowSuggestions(true);
+        setShowSuggestions((json.data || []).length > 0);
       } catch {
         setSuggestions([]);
       }
@@ -312,6 +323,11 @@ export default function Search() {
         fontFamily: "system-ui, sans-serif",
       }}
     >
+      <style>{`
+        .search-wrap:focus-within { border-color: #2A7A6E !important; }
+        .result-card:hover { box-shadow: 0 4px 20px rgba(42,122,110,0.1); }
+      `}</style>
+
       <nav
         style={{
           background: "#fff",
@@ -438,9 +454,9 @@ export default function Search() {
           {t.subtitle}
         </p>
 
-        {/* Search bar with autocomplete */}
         <div style={{ position: "relative" }}>
           <div
+            className="search-wrap"
             style={{
               display: "flex",
               alignItems: "center",
@@ -450,6 +466,7 @@ export default function Search() {
               padding: "6px 6px 6px 14px",
               background: "#fff",
               flexWrap: "wrap",
+              transition: "border-color .2s",
             }}
           >
             <svg
@@ -485,7 +502,6 @@ export default function Search() {
                 background: "transparent",
               }}
             />
-
             <div style={{ position: "relative", flexShrink: 0 }}>
               <div
                 onClick={() => setShowDistricts(!showDistricts)}
@@ -588,7 +604,6 @@ export default function Search() {
                 </div>
               )}
             </div>
-
             <button
               onClick={() => handleSearch()}
               style={{
@@ -607,7 +622,6 @@ export default function Search() {
             </button>
           </div>
 
-          {/* Autocomplete dropdown */}
           {showSuggestions && suggestions.length > 0 && (
             <div
               style={{
@@ -660,13 +674,7 @@ export default function Search() {
                       </div>
                     )}
                   </div>
-                  <div
-                    style={{
-                      fontSize: "11px",
-                      color: "#9ABFBB",
-                      textAlign: "right",
-                    }}
-                  >
+                  <div style={{ fontSize: "11px", color: "#9ABFBB" }}>
                     {med.dosage} · {med.form}
                   </div>
                 </div>
@@ -916,9 +924,24 @@ export default function Search() {
           </div>
         )}
 
+        {/* Results count */}
+        {!loading && searched && Object.keys(grouped).length > 0 && (
+          <div
+            style={{
+              fontSize: "12px",
+              color: "#9ABFBB",
+              marginBottom: "14px",
+              fontWeight: 500,
+            }}
+          >
+            {t.results(Object.keys(grouped).length)}
+          </div>
+        )}
+
         {!loading &&
           Object.values(grouped).map(({ medicine, pharmacies }) => {
-            const sortedPharmacies = effectiveLocation
+            const byPrice = [...pharmacies].sort((a, b) => a.price - b.price);
+            const byDistance = effectiveLocation
               ? [...pharmacies].sort(
                   (a, b) =>
                     (getDistance(
@@ -934,16 +957,32 @@ export default function Search() {
                       b.lng,
                     ) || 999),
                 )
-              : [...pharmacies].sort((a, b) => a.price - b.price);
+              : null;
+
+            const cheapest = byPrice[0];
+            const nearest = byDistance?.[0];
+            const showDualChampion =
+              byDistance && nearest && cheapest && nearest.id !== cheapest.id;
+
+            // Remaining pharmacies excluding champions
+            const champIds = new Set(
+              [cheapest?.id, showDualChampion ? nearest?.id : null].filter(
+                Boolean,
+              ),
+            );
+            const others = byPrice.filter((ph) => !champIds.has(ph.id));
+
             return (
               <div
                 key={medicine.id}
+                className="result-card"
                 style={{
                   background: "#fff",
                   border: "1px solid #D0EBE7",
-                  borderRadius: "14px",
+                  borderRadius: "16px",
                   padding: "16px",
                   marginBottom: "12px",
+                  transition: "box-shadow .2s",
                 }}
               >
                 <div
@@ -1013,141 +1052,488 @@ export default function Search() {
                     </div>
                   </div>
                 </div>
-                {sortedPharmacies.map((ph, i) => {
-                  const dist = effectiveLocation
-                    ? getDistance(
-                        effectiveLocation.lat,
-                        effectiveLocation.lng,
-                        ph.lat,
-                        ph.lng,
-                      )
-                    : null;
-                  return (
+
+                {/* Dual champion cards */}
+                {showDualChampion ? (
+                  <>
                     <div
-                      key={ph.id}
                       style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "8px",
-                        padding: "8px 10px",
-                        borderRadius: "10px",
-                        background: i === 0 ? "#EBF6F4" : "#F8FDFC",
-                        marginBottom: "6px",
-                        flexWrap: "wrap",
+                        display: "grid",
+                        gridTemplateColumns: "1fr 1fr",
+                        gap: "10px",
+                        marginBottom: "10px",
                       }}
                     >
+                      {/* Cheapest */}
                       <div
                         style={{
-                          width: "8px",
-                          height: "8px",
-                          borderRadius: "50%",
-                          flexShrink: 0,
-                          background: i === 0 ? "#2A7A6E" : "#C0DDD9",
+                          background: "#EBF6F4",
+                          border: "1.5px solid #2A7A6E",
+                          borderRadius: "12px",
+                          padding: "12px 14px",
                         }}
-                      ></div>
-                      <div style={{ flex: 1, minWidth: "120px" }}>
+                      >
+                        <div
+                          style={{
+                            fontSize: "10px",
+                            fontWeight: 700,
+                            color: "#2A7A6E",
+                            letterSpacing: "0.4px",
+                            marginBottom: "6px",
+                          }}
+                        >
+                          {t.cheapestLabel}
+                        </div>
                         <div
                           style={{
                             fontSize: "13px",
-                            fontWeight: 600,
+                            fontWeight: 700,
                             color: "#1A3A35",
+                            marginBottom: "2px",
                           }}
                         >
-                          {ph.name}
+                          {cheapest.name}
                         </div>
                         <div
                           style={{
                             fontSize: "11px",
-                            color: "#9ABFBB",
-                            marginTop: "2px",
+                            color: "#7AABA5",
+                            marginBottom: "8px",
                           }}
                         >
-                          {ph.address} · {ph.hours}
-                          {dist && (
-                            <span
-                              style={{
-                                marginLeft: "6px",
-                                color: "#2A7A6E",
-                                fontWeight: 500,
-                              }}
-                            >
-                              📍 {dist} km
+                          {cheapest.address}
+                          {effectiveLocation && cheapest.lat && (
+                            <span>
+                              {" "}
+                              · 📍{" "}
+                              {getDistance(
+                                effectiveLocation.lat,
+                                effectiveLocation.lng,
+                                cheapest.lat,
+                                cheapest.lng,
+                              )}{" "}
+                              km
                             </span>
                           )}
                         </div>
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "space-between",
+                          }}
+                        >
+                          <div
+                            style={{
+                              fontSize: "18px",
+                              fontWeight: 700,
+                              color: "#2A7A6E",
+                            }}
+                          >
+                            {cheapest.price.toFixed(2)} ₾
+                          </div>
+                          <button
+                            onClick={() =>
+                              window.open(
+                                `https://www.google.com/maps/search/?api=1&query=${cheapest.lat},${cheapest.lng}`,
+                                "_blank",
+                              )
+                            }
+                            style={{
+                              background: "#2A7A6E",
+                              color: "#fff",
+                              border: "none",
+                              borderRadius: "8px",
+                              padding: "5px 12px",
+                              fontSize: "11px",
+                              fontWeight: 600,
+                              cursor: "pointer",
+                            }}
+                          >
+                            {t.directions}
+                          </button>
+                        </div>
                       </div>
+                      {/* Nearest */}
                       <div
+                        style={{
+                          background: "#EAF4FD",
+                          border: "1.5px solid #4A90D9",
+                          borderRadius: "12px",
+                          padding: "12px 14px",
+                        }}
+                      >
+                        <div
+                          style={{
+                            fontSize: "10px",
+                            fontWeight: 700,
+                            color: "#1E6091",
+                            letterSpacing: "0.4px",
+                            marginBottom: "6px",
+                          }}
+                        >
+                          {t.nearestLabel}
+                        </div>
+                        <div
+                          style={{
+                            fontSize: "13px",
+                            fontWeight: 700,
+                            color: "#1A3A35",
+                            marginBottom: "2px",
+                          }}
+                        >
+                          {nearest.name}
+                        </div>
+                        <div
+                          style={{
+                            fontSize: "11px",
+                            color: "#7AABA5",
+                            marginBottom: "8px",
+                          }}
+                        >
+                          {nearest.address}
+                          {effectiveLocation && nearest.lat && (
+                            <span>
+                              {" "}
+                              · 📍{" "}
+                              {getDistance(
+                                effectiveLocation.lat,
+                                effectiveLocation.lng,
+                                nearest.lat,
+                                nearest.lng,
+                              )}{" "}
+                              km
+                            </span>
+                          )}
+                        </div>
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "space-between",
+                          }}
+                        >
+                          <div
+                            style={{
+                              fontSize: "18px",
+                              fontWeight: 700,
+                              color: "#1E6091",
+                            }}
+                          >
+                            {nearest.price.toFixed(2)} ₾
+                          </div>
+                          <button
+                            onClick={() =>
+                              window.open(
+                                `https://www.google.com/maps/search/?api=1&query=${nearest.lat},${nearest.lng}`,
+                                "_blank",
+                              )
+                            }
+                            style={{
+                              background: "#4A90D9",
+                              color: "#fff",
+                              border: "none",
+                              borderRadius: "8px",
+                              padding: "5px 12px",
+                              fontSize: "11px",
+                              fontWeight: 600,
+                              cursor: "pointer",
+                            }}
+                          >
+                            {t.directions}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                    {others.length > 0 && (
+                      <>
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "8px",
+                            marginBottom: "10px",
+                          }}
+                        >
+                          <div
+                            style={{
+                              flex: 1,
+                              height: "1px",
+                              background: "#F0F9F6",
+                            }}
+                          ></div>
+                          <span style={{ fontSize: "11px", color: "#9ABFBB" }}>
+                            {t.otherOptions}
+                          </span>
+                          <div
+                            style={{
+                              flex: 1,
+                              height: "1px",
+                              background: "#F0F9F6",
+                            }}
+                          ></div>
+                        </div>
+                        {others.map((ph) => {
+                          const dist = effectiveLocation
+                            ? getDistance(
+                                effectiveLocation.lat,
+                                effectiveLocation.lng,
+                                ph.lat,
+                                ph.lng,
+                              )
+                            : null;
+                          return (
+                            <div
+                              key={ph.id}
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: "8px",
+                                padding: "8px 10px",
+                                borderRadius: "10px",
+                                background: "#F8FDFC",
+                                marginBottom: "6px",
+                                flexWrap: "wrap",
+                              }}
+                            >
+                              <div
+                                style={{
+                                  width: "7px",
+                                  height: "7px",
+                                  borderRadius: "50%",
+                                  flexShrink: 0,
+                                  background: "#C0DDD9",
+                                }}
+                              ></div>
+                              <div style={{ flex: 1, minWidth: "120px" }}>
+                                <div
+                                  style={{
+                                    fontSize: "13px",
+                                    fontWeight: 600,
+                                    color: "#1A3A35",
+                                  }}
+                                >
+                                  {ph.name}
+                                </div>
+                                <div
+                                  style={{
+                                    fontSize: "11px",
+                                    color: "#9ABFBB",
+                                    marginTop: "2px",
+                                  }}
+                                >
+                                  {ph.address} · {ph.hours}
+                                  {dist && (
+                                    <span
+                                      style={{
+                                        marginLeft: "6px",
+                                        color: "#2A7A6E",
+                                        fontWeight: 500,
+                                      }}
+                                    >
+                                      📍 {dist} km
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                              <div
+                                style={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: "6px",
+                                  flexWrap: "wrap",
+                                }}
+                              >
+                                {ph.is_independent && (
+                                  <span
+                                    style={{
+                                      fontSize: "11px",
+                                      fontWeight: 500,
+                                      background: "#EBF6F4",
+                                      color: "#2A7A6E",
+                                      border: "1px solid #A8D9D0",
+                                      padding: "3px 8px",
+                                      borderRadius: "8px",
+                                    }}
+                                  >
+                                    {t.independent}
+                                  </span>
+                                )}
+                                <div
+                                  style={{
+                                    fontSize: "14px",
+                                    fontWeight: 700,
+                                    color: "#1A3A35",
+                                  }}
+                                >
+                                  {ph.price.toFixed(2)} ₾
+                                </div>
+                                <button
+                                  onClick={() =>
+                                    window.open(
+                                      `https://www.google.com/maps/search/?api=1&query=${ph.lat},${ph.lng}`,
+                                      "_blank",
+                                    )
+                                  }
+                                  style={{
+                                    background: "#EBF6F4",
+                                    color: "#2A7A6E",
+                                    border: "1px solid #A8D9D0",
+                                    borderRadius: "8px",
+                                    padding: "5px 10px",
+                                    fontSize: "11px",
+                                    fontWeight: 500,
+                                    cursor: "pointer",
+                                    flexShrink: 0,
+                                  }}
+                                >
+                                  {t.directions}
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </>
+                    )}
+                  </>
+                ) : (
+                  // Single champion — cheapest = nearest or no location
+                  byPrice.map((ph, i) => {
+                    const dist = effectiveLocation
+                      ? getDistance(
+                          effectiveLocation.lat,
+                          effectiveLocation.lng,
+                          ph.lat,
+                          ph.lng,
+                        )
+                      : null;
+                    return (
+                      <div
+                        key={ph.id}
                         style={{
                           display: "flex",
                           alignItems: "center",
-                          gap: "6px",
+                          gap: "8px",
+                          padding: "8px 10px",
+                          borderRadius: "10px",
+                          background: i === 0 ? "#EBF6F4" : "#F8FDFC",
+                          marginBottom: "6px",
                           flexWrap: "wrap",
                         }}
                       >
-                        {i === 0 && (
-                          <span
-                            style={{
-                              fontSize: "11px",
-                              fontWeight: 600,
-                              background: "#FFF3E0",
-                              color: "#C47D00",
-                              border: "1px solid #FFD97A",
-                              padding: "3px 8px",
-                              borderRadius: "8px",
-                            }}
-                          >
-                            {t.cheapest}
-                          </span>
-                        )}
-                        {ph.is_independent && (
-                          <span
-                            style={{
-                              fontSize: "11px",
-                              fontWeight: 500,
-                              background: "#EBF6F4",
-                              color: "#2A7A6E",
-                              border: "1px solid #A8D9D0",
-                              padding: "3px 8px",
-                              borderRadius: "8px",
-                            }}
-                          >
-                            {t.independent}
-                          </span>
-                        )}
                         <div
                           style={{
-                            fontSize: "14px",
-                            fontWeight: 700,
-                            color: "#1A3A35",
-                          }}
-                        >
-                          {ph.price.toFixed(2)} ₾
-                        </div>
-                        <button
-                          onClick={() =>
-                            window.open(
-                              `https://www.google.com/maps/search/?api=1&query=${ph.lat},${ph.lng}`,
-                              "_blank",
-                            )
-                          }
-                          style={{
-                            background: "#2A7A6E",
-                            color: "#fff",
-                            border: "none",
-                            borderRadius: "8px",
-                            padding: "6px 12px",
-                            fontSize: "12px",
-                            fontWeight: 500,
-                            cursor: "pointer",
+                            width: "8px",
+                            height: "8px",
+                            borderRadius: "50%",
                             flexShrink: 0,
+                            background: i === 0 ? "#2A7A6E" : "#C0DDD9",
+                          }}
+                        ></div>
+                        <div style={{ flex: 1, minWidth: "120px" }}>
+                          <div
+                            style={{
+                              fontSize: "13px",
+                              fontWeight: 600,
+                              color: "#1A3A35",
+                            }}
+                          >
+                            {ph.name}
+                          </div>
+                          <div
+                            style={{
+                              fontSize: "11px",
+                              color: "#9ABFBB",
+                              marginTop: "2px",
+                            }}
+                          >
+                            {ph.address} · {ph.hours}
+                            {dist && (
+                              <span
+                                style={{
+                                  marginLeft: "6px",
+                                  color: "#2A7A6E",
+                                  fontWeight: 500,
+                                }}
+                              >
+                                📍 {dist} km
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "6px",
+                            flexWrap: "wrap",
                           }}
                         >
-                          {t.directions}
-                        </button>
+                          {i === 0 && (
+                            <span
+                              style={{
+                                fontSize: "11px",
+                                fontWeight: 600,
+                                background: "#FFF3E0",
+                                color: "#C47D00",
+                                border: "1px solid #FFD97A",
+                                padding: "3px 8px",
+                                borderRadius: "8px",
+                              }}
+                            >
+                              {t.cheapest}
+                            </span>
+                          )}
+                          {ph.is_independent && (
+                            <span
+                              style={{
+                                fontSize: "11px",
+                                fontWeight: 500,
+                                background: "#EBF6F4",
+                                color: "#2A7A6E",
+                                border: "1px solid #A8D9D0",
+                                padding: "3px 8px",
+                                borderRadius: "8px",
+                              }}
+                            >
+                              {t.independent}
+                            </span>
+                          )}
+                          <div
+                            style={{
+                              fontSize: "14px",
+                              fontWeight: 700,
+                              color: "#1A3A35",
+                            }}
+                          >
+                            {ph.price.toFixed(2)} ₾
+                          </div>
+                          <button
+                            onClick={() =>
+                              window.open(
+                                `https://www.google.com/maps/search/?api=1&query=${ph.lat},${ph.lng}`,
+                                "_blank",
+                              )
+                            }
+                            style={{
+                              background: "#2A7A6E",
+                              color: "#fff",
+                              border: "none",
+                              borderRadius: "8px",
+                              padding: "6px 12px",
+                              fontSize: "12px",
+                              fontWeight: 500,
+                              cursor: "pointer",
+                              flexShrink: 0,
+                            }}
+                          >
+                            {t.directions}
+                          </button>
+                        </div>
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })
+                )}
               </div>
             );
           })}
