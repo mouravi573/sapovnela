@@ -81,8 +81,8 @@ const translations = {
     tagline: "წამლების ფასების საძიებო საქართველოში",
     askPlaceholder: "გაიგე მეტი წამლის შესახებ...",
     askBtn: "კითხვა →",
-    showMap: "რუქის ჩვენება",
-    hideMap: "რუქის დამალვა",
+    showMap: "რუკის ჩვენება",
+    hideMap: "რუკის დამალვა",
     backHome: "← მთავარი",
   },
 };
