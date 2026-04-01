@@ -37,7 +37,7 @@ const translations = {
     ],
     portal: "For Pharmacies",
     generic: "Generic",
-    location: "Vake, Tbilisi",
+    location: "Location",
     locating: "Locating...",
     yourLocation: "Your location",
     tagline: "Georgia's medicine price finder",
@@ -77,7 +77,7 @@ const translations = {
     ],
     portal: "აფთიაქებისთვის",
     generic: "გენერიკული",
-    location: "ვაკე, თბილისი",
+    location: "მდებარეობა",
     locating: "მდებარეობა...",
     yourLocation: "შენი მდებარეობა",
     tagline: "წამლების ფასების საძიებო საქართველოში",
@@ -534,7 +534,6 @@ export default function Search() {
                     : customDistrict
                       ? customDistrict
                       : t.location}
-                <span style={{ fontSize: "10px", marginLeft: "2px" }}>▾</span>
               </div>
               {showDistricts && (
                 <div

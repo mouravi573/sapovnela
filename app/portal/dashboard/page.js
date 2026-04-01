@@ -12,7 +12,7 @@ const t = {
     inStock: "Medicines in stock",
     totalListings: "Total listings",
     district: "District",
-    weeklyViews: "Views this week",
+    weeklyViews: "Searches nearby this week",
     championPrice: "Champion price",
     aiTitle: "AI Insight",
     aiEmpty:
