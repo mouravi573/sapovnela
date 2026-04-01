@@ -605,93 +605,80 @@ export default function PharmacyPortal() {
               >
                 {t.b2desc}
               </div>
-              {(cheapestPrices.length > 0
-                ? cheapestPrices
-                : [
-                    {
-                      name: "Ibuprofen",
-                      dosage: "400mg",
-                      form: "tablet",
-                      price: 0.9,
-                    },
-                    {
-                      name: "Paracetamol",
-                      dosage: "500mg",
-                      form: "tablet",
-                      price: 0.6,
-                    },
-                    {
-                      name: "Amoxicillin",
-                      dosage: "500mg",
-                      form: "capsule",
-                      price: 1.6,
-                    },
-                    {
-                      name: "Metformin",
-                      dosage: "850mg",
-                      form: "tablet",
-                      price: 0.45,
-                    },
-                  ]
-              ).map((m, i, arr) => (
+              {cheapestPrices.length === 0 ? (
                 <div
-                  key={i}
                   style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    padding: "8px 0",
-                    borderBottom:
-                      i < arr.length - 1
-                        ? "1px solid rgba(0,0,0,0.06)"
-                        : "none",
+                    textAlign: "center",
+                    padding: "20px 0",
+                    fontSize: "12px",
+                    color: "#9ABFBB",
                   }}
                 >
-                  <div>
-                    <div
-                      style={{
-                        fontSize: "12px",
-                        fontWeight: 500,
-                        color: "#1A3A35",
-                      }}
-                    >
-                      {m.name}
-                    </div>
-                    <div style={{ fontSize: "11px", color: "#9ABFBB" }}>
-                      {m.dosage} · {m.form}
-                    </div>
-                  </div>
+                  {lang === "ge"
+                    ? "ჯერ ფასები არ არის"
+                    : "No prices listed yet"}
+                </div>
+              ) : (
+                cheapestPrices.map((m, i, arr) => (
                   <div
+                    key={i}
                     style={{
                       display: "flex",
                       alignItems: "center",
-                      gap: "6px",
+                      justifyContent: "space-between",
+                      padding: "8px 0",
+                      borderBottom:
+                        i < arr.length - 1
+                          ? "1px solid rgba(0,0,0,0.06)"
+                          : "none",
                     }}
                   >
-                    <span
+                    <div>
+                      <div
+                        style={{
+                          fontSize: "12px",
+                          fontWeight: 500,
+                          color: "#1A3A35",
+                        }}
+                      >
+                        {m.name}
+                      </div>
+                      <div style={{ fontSize: "11px", color: "#9ABFBB" }}>
+                        {m.dosage} · {m.form}
+                      </div>
+                    </div>
+                    <div
                       style={{
-                        fontSize: "14px",
-                        fontWeight: 700,
-                        color: "#B45309",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "6px",
                       }}
                     >
-                      {m.price.toFixed(2)} ₾
-                    </span>
-                    <span
-                      style={{
-                        fontSize: "10px",
-                        background: "#FFF3E0",
-                        color: "#C47D00",
-                        border: "1px solid #FFD97A",
-                        padding: "2px 7px",
-                        borderRadius: "6px",
-                      }}
-                    >
-                      {t.b2badge}
-                    </span>
+                      <span
+                        style={{
+                          fontSize: "14px",
+                          fontWeight: 700,
+                          color: "#B45309",
+                        }}
+                      >
+                        {m.price.toFixed(2)} ₾
+                      </span>
+                      <span
+                        style={{
+                          fontSize: "10px",
+                          background: "#FFF3E0",
+                          color: "#C47D00",
+                          border: "1px solid #FFD97A",
+                          padding: "2px 7px",
+                          borderRadius: "6px",
+                        }}
+                      >
+                        {t.b2badge}
+                      </span>
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))
+              )}
             </div>
 
             {/* Card 3 */}
@@ -767,16 +754,7 @@ export default function PharmacyPortal() {
                   strokeWidth="2"
                   fill="none"
                 />
-                {(pharmacyCoords.length > 0
-                  ? pharmacyCoords
-                  : [
-                      { lat: 41.701, lng: 44.768 },
-                      { lat: 41.721, lng: 44.753 },
-                      { lat: 41.693, lng: 44.799 },
-                      { lat: 41.738, lng: 44.785 },
-                      { lat: 41.687, lng: 44.82 },
-                    ]
-                ).map((ph, i) => {
+                {pharmacyCoords.map((ph, i) => {
                   const { x, y } = toSVG(ph.lat, ph.lng);
                   return (
                     <circle
