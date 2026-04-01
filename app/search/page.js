@@ -27,7 +27,6 @@ const translations = {
     independent: "Independent",
     directions: "Directions",
     searching: "Searching pharmacies near you...",
-    noResults: (q) => `No results found for ${q}`,
     otherOptions: "Other options",
     results: (n) => `${n} result${n !== 1 ? "s" : ""} · sorted by price`,
     stats: [
@@ -67,7 +66,6 @@ const translations = {
     independent: "დამოუკიდებელი",
     directions: "მარშრუტი",
     searching: "ვეძებ მახლობელ აფთიაქებს ...",
-    noResults: (q) => `ვერ მოიძებნა: ${q}`,
     otherOptions: "სხვა ვარიანტები",
     results: (n) => `${n} შედეგი · ფასით დალაგებული`,
     stats: [
@@ -131,6 +129,173 @@ function Logo() {
         >
           sapovnela.com
         </span>
+      </div>
+    </div>
+  );
+}
+
+function ZeroResults({ query, lang }) {
+  const [phone, setPhone] = useState("");
+  const [sent, setSent] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  async function handleNotify() {
+    if (!phone.trim()) return;
+    setLoading(true);
+    try {
+      await fetch("/api/request", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query, phone }),
+      });
+    } catch {}
+    setSent(true);
+    setLoading(false);
+  }
+
+  if (sent)
+    return (
+      <div
+        style={{
+          background: "#fff",
+          border: "1px solid #D0EBE7",
+          borderRadius: "16px",
+          padding: "28px",
+          maxWidth: "480px",
+          margin: "0 auto",
+          textAlign: "center",
+        }}
+      >
+        <div style={{ fontSize: "36px", marginBottom: "12px" }}>✅</div>
+        <div
+          style={{
+            fontSize: "16px",
+            fontWeight: 700,
+            color: "#1A3A35",
+            marginBottom: "8px",
+          }}
+        >
+          {lang === "ge" ? "დარეგისტრირებულია!" : "Registered!"}
+        </div>
+        <div style={{ fontSize: "13px", color: "#7AABA5", lineHeight: 1.6 }}>
+          {lang === "ge"
+            ? "შეგატყობინებთ, როგორც კი ხელმისაწვდომი გახდება."
+            : "We'll notify you as soon as it becomes available."}
+        </div>
+      </div>
+    );
+
+  return (
+    <div
+      style={{
+        background: "#fff",
+        border: "1px solid #D0EBE7",
+        borderRadius: "16px",
+        padding: "28px",
+        maxWidth: "480px",
+        margin: "0 auto",
+        textAlign: "center",
+      }}
+    >
+      <div style={{ fontSize: "36px", marginBottom: "12px" }}>🔍</div>
+      <div
+        style={{
+          display: "inline-block",
+          background: "#EBF6F4",
+          color: "#2A7A6E",
+          border: "1px solid #A8D9D0",
+          padding: "4px 12px",
+          borderRadius: "20px",
+          fontSize: "13px",
+          fontWeight: 600,
+          marginBottom: "14px",
+        }}
+      >
+        {query}
+      </div>
+      <div
+        style={{
+          fontSize: "16px",
+          fontWeight: 700,
+          color: "#1A3A35",
+          marginBottom: "8px",
+        }}
+      >
+        {lang === "ge" ? "ამ მომენტში ვერ ვიპოვეთ" : "Not found right now"}
+      </div>
+      <div
+        style={{
+          fontSize: "13px",
+          color: "#7AABA5",
+          lineHeight: 1.6,
+          marginBottom: "20px",
+        }}
+      >
+        {lang === "ge"
+          ? "საპოვნელა მუდმივად ფართოვდება. ჩვენ დავარეგისტრირეთ თქვენი მოთხოვნა და ვმუშაობთ ამ წამლის მომარაგებაზე."
+          : "Sapovnela is constantly expanding. We've registered your request and are working to source this medicine."}
+      </div>
+      <div
+        style={{ height: "1px", background: "#F0F9F6", marginBottom: "20px" }}
+      ></div>
+      <div
+        style={{
+          fontSize: "13px",
+          color: "#1A3A35",
+          fontWeight: 500,
+          marginBottom: "12px",
+          lineHeight: 1.5,
+        }}
+      >
+        {lang === "ge"
+          ? "თუ გსურთ შეგატყობინოთ როცა ხელმისაწვდომი გახდება, დაგვიტოვეთ ნომერი."
+          : "If you'd like to be notified when it becomes available, leave your number."}
+      </div>
+      <div style={{ display: "flex", gap: "8px" }}>
+        <input
+          type="tel"
+          value={phone}
+          onChange={(e) => setPhone(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && handleNotify()}
+          placeholder="+995 5XX XXX XXX"
+          style={{
+            flex: 1,
+            border: "1.5px solid #D0EBE7",
+            borderRadius: "10px",
+            padding: "9px 14px",
+            fontSize: "13px",
+            outline: "none",
+            color: "#1A3A35",
+          }}
+        />
+        <button
+          onClick={handleNotify}
+          disabled={loading}
+          style={{
+            background: loading ? "#9ABFBB" : "#2A7A6E",
+            color: "#fff",
+            border: "none",
+            borderRadius: "10px",
+            padding: "9px 16px",
+            fontSize: "13px",
+            fontWeight: 600,
+            cursor: loading ? "default" : "pointer",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {lang === "ge" ? "შემატყობინე" : "Notify me"}
+        </button>
+      </div>
+      <div
+        onClick={() => setSent(true)}
+        style={{
+          fontSize: "11px",
+          color: "#9ABFBB",
+          marginTop: "12px",
+          cursor: "pointer",
+        }}
+      >
+        {lang === "ge" ? "გამოტოვება →" : "Skip →"}
       </div>
     </div>
   );
@@ -832,18 +997,11 @@ export default function Search() {
             {t.searching}
           </div>
         )}
+
         {!loading && searched && results.length === 0 && (
-          <div
-            style={{
-              textAlign: "center",
-              padding: "48px 0",
-              color: "#9ABFBB",
-              fontSize: "14px",
-            }}
-          >
-            {t.noResults(query)}
-          </div>
+          <ZeroResults query={query} lang={lang} />
         )}
+
         {!loading && !searched && mapPharmacies.length === 0 && (
           <div
             style={{
@@ -923,7 +1081,6 @@ export default function Search() {
           </div>
         )}
 
-        {/* Results count */}
         {!loading && searched && Object.keys(grouped).length > 0 && (
           <div
             style={{
@@ -957,13 +1114,10 @@ export default function Search() {
                     ) || 999),
                 )
               : null;
-
             const cheapest = byPrice[0];
             const nearest = byDistance?.[0];
             const showDualChampion =
               byDistance && nearest && cheapest && nearest.id !== cheapest.id;
-
-            // Remaining pharmacies excluding champions
             const champIds = new Set(
               [cheapest?.id, showDualChampion ? nearest?.id : null].filter(
                 Boolean,
@@ -1052,7 +1206,6 @@ export default function Search() {
                   </div>
                 </div>
 
-                {/* Dual champion cards */}
                 {showDualChampion ? (
                   <>
                     <div
@@ -1063,7 +1216,6 @@ export default function Search() {
                         marginBottom: "10px",
                       }}
                     >
-                      {/* Cheapest */}
                       <div
                         style={{
                           background: "#EBF6F4",
@@ -1153,7 +1305,6 @@ export default function Search() {
                           </button>
                         </div>
                       </div>
-                      {/* Nearest */}
                       <div
                         style={{
                           background: "#EAF4FD",
@@ -1396,7 +1547,6 @@ export default function Search() {
                     )}
                   </>
                 ) : (
-                  // Single champion — cheapest = nearest or no location
                   byPrice.map((ph, i) => {
                     const dist = effectiveLocation
                       ? getDistance(
