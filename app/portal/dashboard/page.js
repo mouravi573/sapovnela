@@ -12,11 +12,15 @@ const t = {
     inStock: "Medicines in stock",
     totalListings: "Total listings",
     district: "District",
+    weeklyViews: "Views this week",
+    championPrice: "Champion price",
     aiTitle: "AI Insight",
     aiEmpty:
       "Add your first medicine to start appearing in patient searches. Patients in your area are actively searching for medicines right now.",
     aiHasStock: (count) =>
-      `You have ${count} medicines in stock. Make sure your prices are competitive to appear at the top of search results.`,
+      `You have ${count} medicines listed. Check the zero-results section — patients in your area are searching for medicines you might have!`,
+    aiZero: (med) =>
+      `This week ${med} patients searched for medicines near you and found nothing. List those medicines and capture that demand!`,
     inventory: "Your inventory",
     addMedicine: "+ Add medicine",
     uploadCSV: "Upload CSV",
@@ -35,6 +39,17 @@ const t = {
     stockCount: "Stock count",
     add: "Add →",
     cancel: "Cancel",
+    profileTitle: "Profile completion",
+    profileGps: "GPS coordinates",
+    profileGpsSub: "Patients can't find you on the map",
+    profileMeds: "medicines listed",
+    profileMedsSub: "more to reach full visibility",
+    profileHours: "Opening hours",
+    profilePhone: "Phone number",
+    lowStock: "Low stock",
+    outOfStock: "Out of stock",
+    champion: "🏆 Champion",
+    lastUpdate: "Last updated",
   },
   ge: {
     portal: "მართვის პანელი",
@@ -43,11 +58,15 @@ const t = {
     inStock: "წამალი მარაგშია",
     totalListings: "სულ განცხადება",
     district: "რაიონი",
+    weeklyViews: "ნახვა ამ კვირაში",
+    championPrice: "საუკეთესო ფასი",
     aiTitle: "AI რჩევა",
     aiEmpty:
       "დაამატე პირველი წამალი, რომ გამოჩნდე ძიების შედეგებში. შენს მიმდებარედ ახლა ბევრი პაციენტი ეძებს წამლებს.",
     aiHasStock: (count) =>
-      `შენ ${count} წამალი გაქვს მარაგში. გადაამოწმე შენი ფასები და დარწმუნდი მათ კონკურენტუნარიანობაში.`,
+      `შენ ${count} წამალი გაქვს განთავსებული. გადაამოწმე — პაციენტები ეძებენ წამლებს შენს მახლობლად!`,
+    aiZero: (med) =>
+      `ამ კვირაში ${med} პაციენტმა ვერ იპოვა წამალი შენს მახლობლად. განათავსე ეს წამლები და მოიზიდე ისინი!`,
     inventory: "შენი მარაგი",
     addMedicine: "+ წამლის დამატება",
     uploadCSV: "CSV-ის ატვირთვა",
@@ -66,6 +85,17 @@ const t = {
     stockCount: "მარაგის რაოდენობა",
     add: "დამატება →",
     cancel: "გაუქმება",
+    profileTitle: "პროფილის შევსება",
+    profileGps: "GPS კოორდინატები",
+    profileGpsSub: "პაციენტები ვერ გიპოვიან რუქაზე",
+    profileMeds: "წამალი განთავსებული",
+    profileMedsSub: "კიდევ გჭირდება სრული ხილვადობისთვის",
+    profileHours: "სამუშაო საათები",
+    profilePhone: "ტელეფონის ნომერი",
+    lowStock: "მარაგი მცირეა",
+    outOfStock: "მარაგი ამოიწურა",
+    champion: "🏆 Champion",
+    lastUpdate: "ბოლო განახლება",
   },
 };
 
@@ -82,6 +112,9 @@ export default function Dashboard() {
   });
   const [lang, setLang] = useState("ge");
   const [mounted, setMounted] = useState(false);
+  const [weeklyViews, setWeeklyViews] = useState(0);
+  const [zeroResultMeds, setZeroResultMeds] = useState([]);
+  const [championItem, setChampionItem] = useState(null);
   const tr = t[lang];
   const router = useRouter();
 
@@ -106,9 +139,50 @@ export default function Dashboard() {
       setPharmacy(pharmacyData);
       const { data: inv } = await supabase
         .from("inventory")
-        .select("*, medicines(name, dosage, form)")
-        .eq("pharmacy_id", pharmacyData.id);
+        .select("*, medicines(id, name, name_ge, dosage, form)")
+        .eq("pharmacy_id", pharmacyData.id)
+        .order("updated_at", { ascending: false });
       setInventory(inv || []);
+
+      // Find champion (cheapest in-stock item)
+      const inStockInv = (inv || []).filter((i) => i.in_stock);
+      if (inStockInv.length > 0) {
+        const champ = inStockInv.reduce(
+          (min, i) => (i.price < min.price ? i : min),
+          inStockInv[0],
+        );
+        setChampionItem(champ);
+      }
+
+      // Weekly views from search_logs in their district
+      if (pharmacyData.district) {
+        const week = new Date(Date.now() - 7 * 86400000).toISOString();
+        const { count } = await supabase
+          .from("search_logs")
+          .select("*", { count: "exact", head: true })
+          .gte("created_at", week)
+          .eq("district", pharmacyData.district);
+        setWeeklyViews(count || 0);
+
+        // Zero result searches in their district
+        const { data: zeroLogs } = await supabase
+          .from("search_logs")
+          .select("query")
+          .gte("created_at", week)
+          .eq("results_count", 0)
+          .eq("district", pharmacyData.district);
+        if (zeroLogs) {
+          const counts = {};
+          zeroLogs.forEach((l) => {
+            const q = l.query.toLowerCase().trim();
+            counts[q] = (counts[q] || 0) + 1;
+          });
+          const sorted = Object.entries(counts)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 3);
+          setZeroResultMeds(sorted);
+        }
+      }
     }
 
     const { data: meds } = await supabase
@@ -138,6 +212,7 @@ export default function Dashboard() {
   }
 
   async function updatePrice(item, price) {
+    if (!price || isNaN(parseFloat(price))) return;
     await supabase
       .from("inventory")
       .update({
@@ -145,6 +220,7 @@ export default function Dashboard() {
         updated_at: new Date().toISOString(),
       })
       .eq("id", item.id);
+    loadDashboard();
   }
 
   async function addMedicine() {
@@ -194,6 +270,46 @@ export default function Dashboard() {
       </div>
     );
 
+  const inStockCount = inventory.filter((i) => i.in_stock).length;
+  const lowStockItems = inventory.filter(
+    (i) => i.in_stock && i.stock_count <= 10,
+  );
+  const outOfStockItems = inventory.filter((i) => !i.in_stock);
+
+  // Profile completion
+  const profileChecks = [
+    {
+      done: !!pharmacy?.name,
+      label: lang === "ge" ? "სახელი და მისამართი" : "Name and address",
+    },
+    { done: !!pharmacy?.hours, label: tr.profileHours },
+    { done: !!pharmacy?.phone, label: tr.profilePhone },
+    {
+      done: !!(pharmacy?.lat && pharmacy?.lng),
+      label: tr.profileGps,
+      sub: tr.profileGpsSub,
+    },
+    {
+      done: inventory.length >= 20,
+      label: `20+ ${tr.profileMeds}`,
+      sub:
+        inventory.length < 20
+          ? `${20 - inventory.length} ${tr.profileMedsSub}`
+          : null,
+    },
+  ];
+  const profileScore = Math.round(
+    (profileChecks.filter((c) => c.done).length / profileChecks.length) * 100,
+  );
+
+  // AI insight
+  const aiInsight =
+    zeroResultMeds.length > 0
+      ? tr.aiZero(zeroResultMeds.map(([q, c]) => `"${q}" (${c}x)`).join(", "))
+      : inventory.length === 0
+        ? tr.aiEmpty
+        : tr.aiHasStock(inventory.length);
+
   return (
     <main
       style={{
@@ -206,7 +322,7 @@ export default function Dashboard() {
         style={{
           background: "#fff",
           borderBottom: "1px solid #D0EBE7",
-          padding: "0 40px",
+          padding: "0 clamp(16px,4vw,40px)",
           height: "64px",
           display: "flex",
           alignItems: "center",
@@ -250,9 +366,28 @@ export default function Dashboard() {
           </span>
         </Link>
         <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-          <span style={{ fontSize: "13px", color: "#6BA89E" }}>
-            {pharmacy?.name || tr.portal}
-          </span>
+          <div style={{ textAlign: "right" }}>
+            <div
+              style={{ fontSize: "13px", fontWeight: 600, color: "#1A3A35" }}
+            >
+              {pharmacy?.name}
+            </div>
+            <div
+              style={{
+                fontSize: "11px",
+                color: pharmacy?.is_approved ? "#2A7A6E" : "#C47D00",
+              }}
+            >
+              {pharmacy?.district} ·{" "}
+              {pharmacy?.is_approved
+                ? lang === "ge"
+                  ? "ლაივი ✓"
+                  : "Live ✓"
+                : lang === "ge"
+                  ? "მოლოდინში"
+                  : "Pending"}
+            </div>
+          </div>
           <div
             style={{
               display: "flex",
@@ -302,94 +437,258 @@ export default function Dashboard() {
         </div>
       </nav>
 
-      <div style={{ padding: "28px 40px" }}>
+      <div
+        style={{
+          maxWidth: "960px",
+          margin: "0 auto",
+          padding: "28px clamp(16px,4vw,40px)",
+        }}
+      >
+        {/* Welcome */}
+        <div style={{ marginBottom: "24px" }}>
+          <h1
+            style={{
+              fontSize: "22px",
+              fontWeight: 700,
+              color: "#1A3A35",
+              marginBottom: "4px",
+            }}
+          >
+            {lang === "ge"
+              ? `გამარჯობა, ${pharmacy?.name}! 👋`
+              : `Welcome back, ${pharmacy?.name}! 👋`}
+          </h1>
+          <p style={{ fontSize: "13px", color: "#7AABA5" }}>
+            {pharmacy?.district} ·{" "}
+            {pharmacy?.hours ||
+              (lang === "ge" ? "საათები არ არის" : "No hours set")}
+          </p>
+        </div>
+
+        {/* Stats */}
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
+            gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
             gap: "12px",
-            marginBottom: "28px",
+            marginBottom: "20px",
           }}
         >
           {[
             {
-              val: inventory.filter((i) => i.in_stock).length,
+              val: inStockCount,
               label: tr.inStock,
+              color: "#2A7A6E",
+              bg: "#EBF6F4",
             },
-            { val: inventory.length, label: tr.totalListings },
-            { val: pharmacy?.district || "—", label: tr.district },
+            {
+              val: inventory.length,
+              label: tr.totalListings,
+              color: "#1A3A35",
+              bg: "#fff",
+            },
+            {
+              val: weeklyViews,
+              label: tr.weeklyViews,
+              color: "#7B52C8",
+              bg: "#F0EBF8",
+            },
+            {
+              val: championItem ? `${championItem.price.toFixed(2)} ₾` : "—",
+              label: tr.championPrice,
+              color: "#C47D00",
+              bg: "#FFF3E0",
+              sub: championItem ? championItem.medicines?.name : null,
+            },
           ].map((s) => (
             <div
               key={s.label}
               style={{
-                background: "#fff",
+                background: s.bg,
                 border: "1px solid #D0EBE7",
                 borderRadius: "12px",
-                padding: "20px",
+                padding: "16px",
                 textAlign: "center",
               }}
             >
               <div
-                style={{ fontSize: "26px", fontWeight: 700, color: "#2A7A6E" }}
+                style={{
+                  fontSize: "24px",
+                  fontWeight: 700,
+                  color: s.color,
+                  marginBottom: "4px",
+                }}
               >
                 {s.val}
               </div>
-              <div
-                style={{ fontSize: "12px", color: "#9ABFBB", marginTop: "4px" }}
-              >
+              <div style={{ fontSize: "11px", color: "#9ABFBB" }}>
                 {s.label}
               </div>
+              {s.sub && (
+                <div
+                  style={{
+                    fontSize: "10px",
+                    color: s.color,
+                    marginTop: "3px",
+                    fontWeight: 500,
+                  }}
+                >
+                  {s.sub}
+                </div>
+              )}
             </div>
           ))}
         </div>
 
+        {/* AI Insight + Profile */}
         <div
           style={{
-            background: "#F0EBF8",
-            border: "1px solid #C8B8ED",
-            borderRadius: "12px",
-            padding: "14px 16px",
-            display: "flex",
-            gap: "12px",
-            marginBottom: "28px",
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr",
+            gap: "16px",
+            marginBottom: "20px",
           }}
         >
           <div
             style={{
-              width: "34px",
-              height: "34px",
-              background: "#7B52C8",
-              borderRadius: "10px",
+              background: "#F0EBF8",
+              border: "1px solid #C8B8ED",
+              borderRadius: "12px",
+              padding: "16px",
               display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: "17px",
-              flexShrink: 0,
+              gap: "12px",
             }}
           >
-            🤖
-          </div>
-          <div>
             <div
               style={{
-                fontSize: "11px",
-                fontWeight: 700,
-                color: "#7B52C8",
-                letterSpacing: "0.6px",
-                textTransform: "uppercase",
-                marginBottom: "4px",
+                width: "34px",
+                height: "34px",
+                background: "#7B52C8",
+                borderRadius: "10px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: "17px",
+                flexShrink: 0,
               }}
             >
-              {tr.aiTitle}
+              🤖
             </div>
-            <p style={{ fontSize: "13px", color: "#3D2070", lineHeight: 1.6 }}>
-              {inventory.length === 0
-                ? tr.aiEmpty
-                : tr.aiHasStock(inventory.filter((i) => i.in_stock).length)}
-            </p>
+            <div>
+              <div
+                style={{
+                  fontSize: "11px",
+                  fontWeight: 700,
+                  color: "#7B52C8",
+                  letterSpacing: "0.6px",
+                  textTransform: "uppercase",
+                  marginBottom: "4px",
+                }}
+              >
+                {tr.aiTitle}
+              </div>
+              <p
+                style={{ fontSize: "12px", color: "#3D2070", lineHeight: 1.6 }}
+              >
+                {aiInsight}
+              </p>
+            </div>
+          </div>
+
+          <div
+            style={{
+              background: "#fff",
+              border: "1px solid #D0EBE7",
+              borderRadius: "12px",
+              padding: "16px",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                marginBottom: "12px",
+              }}
+            >
+              <div
+                style={{ fontSize: "13px", fontWeight: 700, color: "#1A3A35" }}
+              >
+                {tr.profileTitle}
+              </div>
+              <span
+                style={{
+                  fontSize: "11px",
+                  background: profileScore >= 80 ? "#EBF6F4" : "#FFF3E0",
+                  color: profileScore >= 80 ? "#2A7A6E" : "#C47D00",
+                  border: `1px solid ${profileScore >= 80 ? "#A8D9D0" : "#FFD97A"}`,
+                  padding: "2px 8px",
+                  borderRadius: "6px",
+                  fontWeight: 600,
+                }}
+              >
+                {profileScore}%
+              </span>
+            </div>
+            {profileChecks.map((c, i) => (
+              <div
+                key={i}
+                style={{
+                  display: "flex",
+                  alignItems: "flex-start",
+                  gap: "8px",
+                  padding: "5px 0",
+                  borderBottom:
+                    i < profileChecks.length - 1 ? "1px solid #F4FBFA" : "none",
+                }}
+              >
+                <span
+                  style={{ fontSize: "12px", flexShrink: 0, marginTop: "1px" }}
+                >
+                  {c.done ? "✅" : "⬜"}
+                </span>
+                <div>
+                  <div style={{ fontSize: "12px", color: "#1A3A35" }}>
+                    {c.label}
+                  </div>
+                  {!c.done && c.sub && (
+                    <div
+                      style={{
+                        fontSize: "10px",
+                        color: "#9ABFBB",
+                        marginTop: "1px",
+                      }}
+                    >
+                      {c.sub}
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+            <div style={{ marginTop: "10px" }}>
+              <div
+                style={{
+                  height: "6px",
+                  background: "#F0F9F6",
+                  borderRadius: "3px",
+                  overflow: "hidden",
+                }}
+              >
+                <div
+                  style={{
+                    height: "100%",
+                    borderRadius: "3px",
+                    background: profileScore >= 80 ? "#2A7A6E" : "#C47D00",
+                    width: `${profileScore}%`,
+                    transition: "width .5s",
+                  }}
+                ></div>
+              </div>
+            </div>
           </div>
         </div>
 
+        {/* Inventory */}
         <div
           style={{
             background: "#fff",
@@ -408,9 +707,29 @@ export default function Dashboard() {
               gap: "8px",
             }}
           >
-            <h2 style={{ fontSize: "16px", fontWeight: 700, color: "#1A3A35" }}>
-              {tr.inventory}
-            </h2>
+            <div>
+              <h2
+                style={{
+                  fontSize: "16px",
+                  fontWeight: 700,
+                  color: "#1A3A35",
+                  marginBottom: "2px",
+                }}
+              >
+                {tr.inventory}
+              </h2>
+              {(lowStockItems.length > 0 || outOfStockItems.length > 0) && (
+                <div style={{ fontSize: "11px", color: "#C47D00" }}>
+                  {outOfStockItems.length > 0 &&
+                    `${outOfStockItems.length} ${tr.outOfStock}`}
+                  {outOfStockItems.length > 0 &&
+                    lowStockItems.length > 0 &&
+                    " · "}
+                  {lowStockItems.length > 0 &&
+                    `${lowStockItems.length} ${tr.lowStock}`}
+                </div>
+              )}
+            </div>
             <div style={{ display: "flex", gap: "8px" }}>
               <button
                 onClick={() => setShowAdd(!showAdd)}
@@ -705,7 +1024,7 @@ export default function Dashboard() {
           ) : (
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
               <thead>
-                <tr>
+                <tr style={{ background: "#F4FBFA" }}>
                   {[tr.medicine, tr.price, tr.stockStatus, tr.lastUpdated].map(
                     (h) => (
                       <th
@@ -715,7 +1034,7 @@ export default function Dashboard() {
                           fontWeight: 600,
                           color: "#9ABFBB",
                           textAlign: "left",
-                          padding: "8px",
+                          padding: "8px 10px",
                           borderBottom: "1px solid #D0EBE7",
                           textTransform: "uppercase",
                           letterSpacing: "0.5px",
@@ -728,75 +1047,145 @@ export default function Dashboard() {
                 </tr>
               </thead>
               <tbody>
-                {inventory.map((item) => (
-                  <tr
-                    key={item.id}
-                    style={{ borderBottom: "1px solid #F4FBFA" }}
-                  >
-                    <td
-                      style={{
-                        padding: "10px 8px",
-                        fontSize: "13px",
-                        fontWeight: 500,
-                        color: "#1A3A35",
-                      }}
+                {inventory.map((item) => {
+                  const isChampion = championItem?.id === item.id;
+                  const isLowStock = item.in_stock && item.stock_count <= 10;
+                  return (
+                    <tr
+                      key={item.id}
+                      style={{ borderBottom: "1px solid #F4FBFA" }}
+                      onMouseEnter={(e) =>
+                        (e.currentTarget.style.background = "#F8FDFC")
+                      }
+                      onMouseLeave={(e) =>
+                        (e.currentTarget.style.background = "transparent")
+                      }
                     >
-                      {item.medicines?.name}
-                      <div
+                      <td style={{ padding: "10px 10px" }}>
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "8px",
+                          }}
+                        >
+                          <div
+                            style={{
+                              width: "8px",
+                              height: "8px",
+                              borderRadius: "50%",
+                              flexShrink: 0,
+                              background: item.in_stock ? "#2A7A6E" : "#F09595",
+                            }}
+                          ></div>
+                          <div>
+                            <div
+                              style={{
+                                fontSize: "13px",
+                                fontWeight: 600,
+                                color: "#1A3A35",
+                              }}
+                            >
+                              {item.medicines?.name}
+                              {isChampion && (
+                                <span
+                                  style={{
+                                    fontSize: "10px",
+                                    background: "#FFF3E0",
+                                    color: "#C47D00",
+                                    border: "1px solid #FFD97A",
+                                    padding: "1px 6px",
+                                    borderRadius: "6px",
+                                    marginLeft: "6px",
+                                    fontWeight: 600,
+                                  }}
+                                >
+                                  {tr.champion}
+                                </span>
+                              )}
+                            </div>
+                            <div
+                              style={{
+                                fontSize: "11px",
+                                color: "#9ABFBB",
+                                marginTop: "1px",
+                              }}
+                            >
+                              {item.medicines?.dosage} · {item.medicines?.form}
+                            </div>
+                          </div>
+                        </div>
+                      </td>
+                      <td style={{ padding: "10px 10px" }}>
+                        <input
+                          type="number"
+                          defaultValue={item.price}
+                          onBlur={(e) => updatePrice(item, e.target.value)}
+                          style={{
+                            width: "70px",
+                            border: "1.5px solid #D0EBE7",
+                            borderRadius: "8px",
+                            padding: "5px 8px",
+                            fontSize: "13px",
+                            fontWeight: 600,
+                            outline: "none",
+                            color: "#2A7A6E",
+                            background: "#fff",
+                          }}
+                        />
+                      </td>
+                      <td style={{ padding: "10px 10px" }}>
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "6px",
+                            flexWrap: "wrap",
+                          }}
+                        >
+                          <button
+                            onClick={() => toggleStock(item)}
+                            style={{
+                              background: item.in_stock ? "#EAF3DE" : "#FCEBEB",
+                              color: item.in_stock ? "#27500A" : "#A32D2D",
+                              border: `1px solid ${item.in_stock ? "#3B6D11" : "#E24B4A"}`,
+                              borderRadius: "8px",
+                              padding: "4px 12px",
+                              fontSize: "11px",
+                              fontWeight: 500,
+                              cursor: "pointer",
+                            }}
+                          >
+                            {item.in_stock ? tr.inStockBtn : tr.outOfStockBtn}
+                          </button>
+                          {isLowStock && (
+                            <span
+                              style={{
+                                fontSize: "10px",
+                                background: "#FFF3E0",
+                                color: "#C47D00",
+                                border: "1px solid #FFD97A",
+                                padding: "2px 6px",
+                                borderRadius: "6px",
+                              }}
+                            >
+                              {tr.lowStock}
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                      <td
                         style={{
+                          padding: "10px 10px",
                           fontSize: "11px",
                           color: "#9ABFBB",
-                          marginTop: "1px",
                         }}
                       >
-                        {item.medicines?.dosage} · {item.medicines?.form}
-                      </div>
-                    </td>
-                    <td style={{ padding: "10px 8px" }}>
-                      <input
-                        type="number"
-                        defaultValue={item.price}
-                        onBlur={(e) => updatePrice(item, e.target.value)}
-                        style={{
-                          width: "70px",
-                          border: "1.5px solid #D0EBE7",
-                          borderRadius: "8px",
-                          padding: "5px 8px",
-                          fontSize: "13px",
-                          outline: "none",
-                          color: "#1A3A35",
-                          background: "#fff",
-                        }}
-                      />
-                    </td>
-                    <td style={{ padding: "10px 8px" }}>
-                      <button
-                        onClick={() => toggleStock(item)}
-                        style={{
-                          background: item.in_stock ? "#EAF3DE" : "#FCEBEB",
-                          color: item.in_stock ? "#27500A" : "#A32D2D",
-                          border: `1px solid ${item.in_stock ? "#3B6D11" : "#E24B4A"}`,
-                          borderRadius: "8px",
-                          padding: "4px 12px",
-                          fontSize: "12px",
-                          fontWeight: 500,
-                          cursor: "pointer",
-                        }}
-                      >
-                        {item.in_stock ? tr.inStockBtn : tr.outOfStockBtn}
-                      </button>
-                    </td>
-                    <td
-                      style={{
-                        padding: "10px 8px",
-                        fontSize: "11px",
-                        color: "#9ABFBB",
-                      }}
-                    >
-                      {new Date(item.updated_at).toLocaleDateString()}
-                    </td>
-                  </tr>
-                ))}
+                        {new Date(item.updated_at).toLocaleDateString()}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           )}
