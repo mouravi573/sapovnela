@@ -281,7 +281,15 @@ export default function Admin() {
           justifyContent: "space-between",
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+        <a
+          href="/"
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "10px",
+            textDecoration: "none",
+          }}
+        >
           <div
             style={{
               width: "38px",
@@ -308,24 +316,41 @@ export default function Admin() {
           >
             საპოვ<span style={{ color: "#2A7A6E" }}>ნელა</span> · Admin
           </span>
+        </a>
+        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+          <a
+            href="/"
+            style={{
+              background: "none",
+              border: "1px solid #D0EBE7",
+              color: "#7AABA5",
+              borderRadius: "20px",
+              padding: "6px 16px",
+              fontSize: "12px",
+              cursor: "pointer",
+              textDecoration: "none",
+            }}
+          >
+            ← Home
+          </a>
+          <button
+            onClick={() => {
+              sessionStorage.removeItem("admin_authed");
+              setAuthed(false);
+            }}
+            style={{
+              background: "none",
+              border: "1px solid #D0EBE7",
+              color: "#7AABA5",
+              borderRadius: "20px",
+              padding: "6px 16px",
+              fontSize: "12px",
+              cursor: "pointer",
+            }}
+          >
+            Sign out
+          </button>
         </div>
-        <button
-          onClick={() => {
-            sessionStorage.removeItem("admin_authed");
-            setAuthed(false);
-          }}
-          style={{
-            background: "none",
-            border: "1px solid #D0EBE7",
-            color: "#7AABA5",
-            borderRadius: "20px",
-            padding: "6px 16px",
-            fontSize: "12px",
-            cursor: "pointer",
-          }}
-        >
-          Sign out
-        </button>
       </nav>
 
       <div
@@ -945,6 +970,7 @@ export default function Admin() {
                 ))
               )}
             </div>
+
             <div>
               <h2
                 style={{
