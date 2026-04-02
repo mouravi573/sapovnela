@@ -7,10 +7,14 @@ export async function POST(request) {
 
     const fullAddress = `${address}, Tbilisi, Georgia`;
     const key = process.env.GOOGLE_MAPS_KEY;
+    console.log("Key:", key);
+    console.log("Address:", fullAddress);
+
     const res = await fetch(
       `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(fullAddress)}&key=${key}`,
     );
     const data = await res.json();
+    console.log("Google response:", JSON.stringify(data));
 
     if (data.results?.[0]?.geometry?.location) {
       const { lat, lng } = data.results[0].geometry.location;
