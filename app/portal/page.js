@@ -221,17 +221,18 @@ export default function PharmacyPortal() {
       }
       setCheapestPrices(prices);
 
-      const { data: coords } = await supabase
+      const { data: coordsData } = await supabase
         .from("pharmacies")
         .select("lat, lng")
         .not("lat", "is", null)
         .limit(20);
-      setPharmacyCoords(coords || []);
+      setPharmacyCoords(coordsData || []);
     }
     fetchData();
   }, []);
 
   const t = pt[lang];
+
   function update(field, value) {
     setForm((prev) => ({ ...prev, [field]: value }));
   }
@@ -241,15 +242,18 @@ export default function PharmacyPortal() {
     setGeocoding(true);
     try {
       const fullAddress = `${address}, Tbilisi, Georgia`;
+      const key = process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY;
       const res = await fetch(
-        `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(fullAddress)}&key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY}`,
+        `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(fullAddress)}&key=${key}`,
       );
       const data = await res.json();
       if (data.results?.[0]?.geometry?.location) {
         const { lat, lng } = data.results[0].geometry.location;
         setCoords({ lat, lng });
       }
-    } catch {}
+    } catch (err) {
+      console.error("Geocoding error:", err);
+    }
     setGeocoding(false);
   }
 
@@ -278,7 +282,6 @@ export default function PharmacyPortal() {
         lng: coords.lng,
       });
       if (dbError) throw dbError;
-      // Send WhatsApp notification
       fetch("/api/notify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -470,7 +473,6 @@ export default function PharmacyPortal() {
             </div>
           </div>
 
-          {/* Benefit cards */}
           <div
             style={{
               display: "grid",
@@ -814,7 +816,6 @@ export default function PharmacyPortal() {
             </div>
           </div>
 
-          {/* Stats ribbon */}
           <div
             style={{
               background: "#2A7A6E",
