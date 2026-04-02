@@ -159,6 +159,8 @@ export default function PharmacyPortal() {
     email: "",
     password: "",
   });
+  const [coords, setCoords] = useState({ lat: null, lng: null });
+  const [geocoding, setGeocoding] = useState(false);
   const [liveStats, setLiveStats] = useState({
     pharmacies: 0,
     medicines: 0,
@@ -234,6 +236,23 @@ export default function PharmacyPortal() {
     setForm((prev) => ({ ...prev, [field]: value }));
   }
 
+  async function geocodeAddress(address) {
+    if (!address || address.length < 5) return;
+    setGeocoding(true);
+    try {
+      const fullAddress = `${address}, Tbilisi, Georgia`;
+      const res = await fetch(
+        `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(fullAddress)}&key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY}`,
+      );
+      const data = await res.json();
+      if (data.results?.[0]?.geometry?.location) {
+        const { lat, lng } = data.results[0].geometry.location;
+        setCoords({ lat, lng });
+      }
+    } catch {}
+    setGeocoding(false);
+  }
+
   async function handleRegister() {
     if (!form.email || !form.password || !form.name) {
       alert("Please fill in all required fields");
@@ -255,6 +274,8 @@ export default function PharmacyPortal() {
         rating: 0,
         user_id: authData.user.id,
         is_approved: false,
+        lat: coords.lat,
+        lng: coords.lng,
       });
       if (dbError) throw dbError;
       // Send WhatsApp notification
@@ -874,11 +895,38 @@ export default function PharmacyPortal() {
                   }}
                 >
                   {f.label}
+                  {f.field === "address" && geocoding && (
+                    <span
+                      style={{
+                        fontSize: "11px",
+                        color: "#9ABFBB",
+                        marginLeft: "8px",
+                      }}
+                    >
+                      📍 locating...
+                    </span>
+                  )}
+                  {f.field === "address" && !geocoding && coords.lat && (
+                    <span
+                      style={{
+                        fontSize: "11px",
+                        color: "#2A7A6E",
+                        marginLeft: "8px",
+                      }}
+                    >
+                      📍 found ✓
+                    </span>
+                  )}
                 </label>
                 <input
                   type={f.type || "text"}
                   value={form[f.field]}
                   onChange={(e) => update(f.field, e.target.value)}
+                  onBlur={
+                    f.field === "address"
+                      ? (e) => geocodeAddress(e.target.value)
+                      : undefined
+                  }
                   placeholder={f.placeholder}
                   style={{
                     width: "100%",
