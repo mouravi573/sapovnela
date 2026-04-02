@@ -241,15 +241,14 @@ export default function PharmacyPortal() {
     if (!address || address.length < 5) return;
     setGeocoding(true);
     try {
-      const fullAddress = `${address}, Tbilisi, Georgia`;
-      const key = process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY;
-      const res = await fetch(
-        `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(fullAddress)}&key=${key}`,
-      );
+      const res = await fetch("/api/geocode", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ address }),
+      });
       const data = await res.json();
-      if (data.results?.[0]?.geometry?.location) {
-        const { lat, lng } = data.results[0].geometry.location;
-        setCoords({ lat, lng });
+      if (data.lat && data.lng) {
+        setCoords({ lat: data.lat, lng: data.lng });
       }
     } catch (err) {
       console.error("Geocoding error:", err);
