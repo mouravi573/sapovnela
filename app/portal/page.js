@@ -262,6 +262,20 @@ export default function PharmacyPortal() {
       return;
     }
     try {
+      // Geocode address fresh at registration time
+      let lat = coords.lat;
+      let lng = coords.lng;
+      if (!lat && form.address) {
+        const geoRes = await fetch("/api/geocode", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ address: form.address }),
+        });
+        const geoData = await geoRes.json();
+        lat = geoData.lat;
+        lng = geoData.lng;
+      }
+
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: form.email,
         password: form.password,
@@ -277,8 +291,8 @@ export default function PharmacyPortal() {
         rating: 0,
         user_id: authData.user.id,
         is_approved: false,
-        lat: coords.lat,
-        lng: coords.lng,
+        lat,
+        lng,
       });
       if (dbError) throw dbError;
       fetch("/api/notify", {
