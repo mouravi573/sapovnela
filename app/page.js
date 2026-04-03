@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 const translations = {
   en: {
     title: "Portal for Buying and Selling of Medicines",
-    find: "Find or Buy Medicine",
+    find: "Buy Medicine",
     findDesc: "Search prices across pharmacies near you",
     sell: "Sell Medicine",
     sellDesc: "Register your pharmacy and list your prices",
