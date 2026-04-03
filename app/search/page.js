@@ -349,11 +349,43 @@ export default function Search() {
   const [suggestions, setSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const debounceRef = useRef(null);
+  const [topTags, setTopTags] = useState([
+    "Ibuprofen",
+    "Paracetamol",
+    "Metformin",
+    "Omeprazole",
+    "Aspirin",
+    "Amoxicillin",
+  ]);
 
   useEffect(() => {
     const saved = localStorage.getItem("lang") || "ge";
     setLang(saved);
     setMounted(true);
+    // Fetch top searched medicines
+    // Fetch top searched medicines
+    import("../../lib/supabase").then(({ supabase }) => {
+      const week = new Date(Date.now() - 7 * 86400000).toISOString();
+      supabase
+        .from("search_logs")
+        .select("query")
+        .gte("created_at", week)
+        .gt("results_count", 0)
+        .then(({ data }) => {
+          if (data && data.length > 0) {
+            const counts = {};
+            data.forEach((l) => {
+              const q = l.query.trim();
+              counts[q] = (counts[q] || 0) + 1;
+            });
+            const top = Object.entries(counts)
+              .sort((a, b) => b[1] - a[1])
+              .slice(0, 6)
+              .map(([q]) => q);
+            if (top.length > 0) setTopTags(top);
+          }
+        });
+    });
     if (window.location.search.includes("map=1")) {
       setShowMap(true);
       import("../../lib/supabase").then(({ supabase }) => {
@@ -855,14 +887,7 @@ export default function Search() {
             flexWrap: "wrap",
           }}
         >
-          {[
-            "Ibuprofen",
-            "Paracetamol",
-            "Metformin",
-            "Omeprazole",
-            "Aspirin",
-            "Amoxicillin",
-          ].map((tag) => (
+          {topTags.map((tag) => (
             <span
               key={tag}
               onClick={() => {
@@ -883,6 +908,22 @@ export default function Search() {
               {tag}
             </span>
           ))}
+        </div>
+        <div style={{ marginTop: "10px" }}>
+          <a
+            href="/champions"
+            style={{
+              fontSize: "12px",
+              color: "#2A7A6E",
+              textDecoration: "none",
+              fontWeight: 500,
+            }}
+          >
+            🏆{" "}
+            {lang === "ge"
+              ? "იხილე საუკეთესო ფასები კატეგორიების მიხედვით →"
+              : "See best prices by category →"}
+          </a>
         </div>
       </div>
 
