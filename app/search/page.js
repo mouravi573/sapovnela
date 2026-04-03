@@ -593,6 +593,7 @@ export default function Search() {
         </button>
         <button
           onClick={() => (window.location.href = "/portal")}
+          className="hide-mobile"
           style={{
             fontSize: "13px",
             background: "#2A7A6E",
