@@ -45,6 +45,7 @@ const translations = {
     showMap: "Show map",
     hideMap: "Hide map",
     backHome: "← Home",
+    championsLink: "See best prices by category →",
   },
   ge: {
     find: "იპოვე",
@@ -84,6 +85,7 @@ const translations = {
     showMap: "რუკის ჩვენება",
     hideMap: "რუკის დამალვა",
     backHome: "← მთავარი",
+    championsLink: "იხილე საუკეთესო ფასები კატეგორიების მიხედვით →",
   },
 };
 
@@ -330,6 +332,15 @@ function getDistance(lat1, lng1, lat2, lng2) {
   );
 }
 
+const DEFAULT_TAGS = [
+  "Ibuprofen",
+  "Paracetamol",
+  "Metformin",
+  "Omeprazole",
+  "Aspirin",
+  "Amoxicillin",
+];
+
 export default function Search() {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState([]);
@@ -348,23 +359,16 @@ export default function Search() {
   const [allPharmaciesForMap, setAllPharmaciesForMap] = useState([]);
   const [suggestions, setSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [topTags, setTopTags] = useState(DEFAULT_TAGS);
   const debounceRef = useRef(null);
-  const [topTags, setTopTags] = useState([
-    "Ibuprofen",
-    "Paracetamol",
-    "Metformin",
-    "Omeprazole",
-    "Aspirin",
-    "Amoxicillin",
-  ]);
 
   useEffect(() => {
     const saved = localStorage.getItem("lang") || "ge";
     setLang(saved);
     setMounted(true);
-    // Fetch top searched medicines
-    // Fetch top searched medicines
+
     import("../../lib/supabase").then(({ supabase }) => {
+      // Fetch top searched medicines
       const week = new Date(Date.now() - 7 * 86400000).toISOString();
       supabase
         .from("search_logs")
@@ -385,10 +389,10 @@ export default function Search() {
             if (top.length > 0) setTopTags(top);
           }
         });
-    });
-    if (window.location.search.includes("map=1")) {
-      setShowMap(true);
-      import("../../lib/supabase").then(({ supabase }) => {
+
+      // Load all pharmacies if map=1
+      if (window.location.search.includes("map=1")) {
+        setShowMap(true);
         supabase
           .from("pharmacies")
           .select("id, name, address, lat, lng, hours, is_independent")
@@ -396,8 +400,8 @@ export default function Search() {
           .then(({ data }) => {
             if (data) setAllPharmaciesForMap(data);
           });
-      });
-    }
+      }
+    });
   }, []);
 
   const t = translations[lang];
@@ -879,6 +883,7 @@ export default function Search() {
           )}
         </div>
 
+        {/* Dynamic tags + champions link */}
         <div
           style={{
             display: "flex",
@@ -919,10 +924,7 @@ export default function Search() {
               fontWeight: 500,
             }}
           >
-            🏆{" "}
-            {lang === "ge"
-              ? "იხილე საუკეთესო ფასები კატეგორიების მიხედვით →"
-              : "See best prices by category →"}
+            🏆 {t.championsLink}
           </a>
         </div>
       </div>
