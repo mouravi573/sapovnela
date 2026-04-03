@@ -62,3 +62,9 @@ textarea {
 body {
   position: relative;
 }
+
+@media (max-width: 480px) {
+  .lang-toggle {
+    display: none !important;
+  }
+}
