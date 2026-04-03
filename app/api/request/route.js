@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 
 export async function POST(request) {
   try {
-    const { query, phone } = await request.json();
+    const { query, phone, district } = await request.json();
 
     if (!query || !phone) {
       return NextResponse.json({ error: "Missing fields" }, { status: 400 });
@@ -16,7 +16,7 @@ export async function POST(request) {
 
     const { error } = await supabase
       .from("medicine_requests")
-      .insert({ query, phone: cleanPhone });
+      .insert({ query, phone: cleanPhone, district: district || null });
 
     if (error)
       return NextResponse.json({ error: error.message }, { status: 500 });

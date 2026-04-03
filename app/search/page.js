@@ -134,7 +134,7 @@ function Logo() {
   );
 }
 
-function ZeroResults({ query, lang }) {
+function ZeroResults({ query, lang, district }) {
   const [phone, setPhone] = useState("");
   const [sent, setSent] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -146,7 +146,7 @@ function ZeroResults({ query, lang }) {
       await fetch("/api/request", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query, phone }),
+        body: JSON.stringify({ query, phone, district }),
       });
     } catch {}
     setSent(true);
@@ -999,7 +999,7 @@ export default function Search() {
         )}
 
         {!loading && searched && results.length === 0 && (
-          <ZeroResults query={query} lang={lang} />
+          <ZeroResults query={query} lang={lang} district={customDistrict} />
         )}
 
         {!loading && !searched && mapPharmacies.length === 0 && (
