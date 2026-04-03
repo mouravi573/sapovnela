@@ -50,6 +50,11 @@ const t = {
     outOfStock: "Out of stock",
     champion: "🏆 Champion",
     lastUpdate: "Last updated",
+    requestsTitle: "Patient Requests in Your Area",
+    requestsDesc: "Medicines patients searched for but couldn't find nearby",
+    requestsEmpty:
+      "No patient requests yet — great news, everything is being found!",
+    requestsWaiting: "patients waiting",
   },
   ge: {
     portal: "მართვის პანელი",
@@ -58,7 +63,7 @@ const t = {
     inStock: "წამალი მარაგშია",
     totalListings: "სულ განცხადება",
     district: "რაიონი",
-    weeklyViews: "ნახვა ამ კვირაში",
+    weeklyViews: "ძიება მახლობლად ამ კვირაში",
     championPrice: "საუკეთესო ფასი",
     aiTitle: "AI რჩევა",
     aiEmpty:
@@ -96,6 +101,10 @@ const t = {
     outOfStock: "მარაგი ამოიწურა",
     champion: "🏆 Champion",
     lastUpdate: "ბოლო განახლება",
+    requestsTitle: "პაციენტების მოთხოვნები შენს მიმდებარედ",
+    requestsDesc: "წამლები, რომლებიც პაციენტებმა ვერ იპოვეს შენს მახლობლად",
+    requestsEmpty: "პაციენტების მოთხოვნა ჯერ არ არის — ყველაფერი პოულობენ!",
+    requestsWaiting: "პაციენტი ელოდება",
   },
 };
 
@@ -115,6 +124,7 @@ export default function Dashboard() {
   const [weeklyViews, setWeeklyViews] = useState(0);
   const [zeroResultMeds, setZeroResultMeds] = useState([]);
   const [championItem, setChampionItem] = useState(null);
+  const [patientRequests, setPatientRequests] = useState([]);
   const tr = t[lang];
   const router = useRouter();
 
@@ -144,7 +154,6 @@ export default function Dashboard() {
         .order("updated_at", { ascending: false });
       setInventory(inv || []);
 
-      // Find champion (cheapest in-stock item)
       const inStockInv = (inv || []).filter((i) => i.in_stock);
       if (inStockInv.length > 0) {
         const champ = inStockInv.reduce(
@@ -154,7 +163,6 @@ export default function Dashboard() {
         setChampionItem(champ);
       }
 
-      // Weekly views from search_logs in their district
       if (pharmacyData.district) {
         const week = new Date(Date.now() - 7 * 86400000).toISOString();
         const { count } = await supabase
@@ -164,7 +172,6 @@ export default function Dashboard() {
           .eq("district", pharmacyData.district);
         setWeeklyViews(count || 0);
 
-        // Zero result searches in their district
         const { data: zeroLogs } = await supabase
           .from("search_logs")
           .select("query")
@@ -177,10 +184,28 @@ export default function Dashboard() {
             const q = l.query.toLowerCase().trim();
             counts[q] = (counts[q] || 0) + 1;
           });
-          const sorted = Object.entries(counts)
-            .sort((a, b) => b[1] - a[1])
-            .slice(0, 3);
-          setZeroResultMeds(sorted);
+          setZeroResultMeds(
+            Object.entries(counts)
+              .sort((a, b) => b[1] - a[1])
+              .slice(0, 3),
+          );
+        }
+
+        // Patient requests in their district
+        const { data: requests } = await supabase
+          .from("medicine_requests")
+          .select("query, created_at")
+          .eq("district", pharmacyData.district)
+          .order("created_at", { ascending: false });
+        if (requests) {
+          const counts = {};
+          requests.forEach((r) => {
+            const q = r.query.toLowerCase().trim();
+            counts[q] = (counts[q] || 0) + 1;
+          });
+          setPatientRequests(
+            Object.entries(counts).sort((a, b) => b[1] - a[1]),
+          );
         }
       }
     }
@@ -276,7 +301,6 @@ export default function Dashboard() {
   );
   const outOfStockItems = inventory.filter((i) => !i.in_stock);
 
-  // Profile completion
   const profileChecks = [
     {
       done: !!pharmacy?.name,
@@ -302,7 +326,6 @@ export default function Dashboard() {
     (profileChecks.filter((c) => c.done).length / profileChecks.length) * 100,
   );
 
-  // AI insight
   const aiInsight =
     zeroResultMeds.length > 0
       ? tr.aiZero(zeroResultMeds.map(([q, c]) => `"${q}" (${c}x)`).join(", "))
@@ -594,7 +617,6 @@ export default function Dashboard() {
               </p>
             </div>
           </div>
-
           <div
             style={{
               background: "#fff",
@@ -686,6 +708,107 @@ export default function Dashboard() {
               </div>
             </div>
           </div>
+        </div>
+
+        {/* Patient Requests */}
+        <div
+          style={{
+            background: "#fff",
+            border: "1px solid #D0EBE7",
+            borderRadius: "14px",
+            padding: "20px",
+            marginBottom: "20px",
+          }}
+        >
+          <div style={{ marginBottom: "16px" }}>
+            <h2
+              style={{
+                fontSize: "16px",
+                fontWeight: 700,
+                color: "#1A3A35",
+                marginBottom: "4px",
+              }}
+            >
+              🔔 {tr.requestsTitle}
+              {patientRequests.length > 0 && (
+                <span
+                  style={{
+                    fontSize: "12px",
+                    background: "#FCEBEB",
+                    color: "#A32D2D",
+                    border: "1px solid #F09595",
+                    padding: "2px 8px",
+                    borderRadius: "8px",
+                    marginLeft: "8px",
+                    fontWeight: 500,
+                  }}
+                >
+                  {patientRequests.length}
+                </span>
+              )}
+            </h2>
+            <p style={{ fontSize: "12px", color: "#9ABFBB" }}>
+              {tr.requestsDesc}
+            </p>
+          </div>
+          {patientRequests.length === 0 ? (
+            <div
+              style={{
+                textAlign: "center",
+                padding: "20px 0",
+                fontSize: "13px",
+                color: "#9ABFBB",
+              }}
+            >
+              {tr.requestsEmpty}
+            </div>
+          ) : (
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))",
+                gap: "10px",
+              }}
+            >
+              {patientRequests.map(([query, count]) => (
+                <div
+                  key={query}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    background: "#FFF3E0",
+                    border: "1px solid #FFD97A",
+                    borderRadius: "10px",
+                    padding: "10px 14px",
+                  }}
+                >
+                  <div>
+                    <div
+                      style={{
+                        fontSize: "13px",
+                        fontWeight: 600,
+                        color: "#1A3A35",
+                        textTransform: "capitalize",
+                      }}
+                    >
+                      {query}
+                    </div>
+                    <div
+                      style={{
+                        fontSize: "11px",
+                        color: "#C47D00",
+                        marginTop: "2px",
+                      }}
+                    >
+                      {count} {tr.requestsWaiting}
+                    </div>
+                  </div>
+                  <span style={{ fontSize: "18px" }}>🔔</span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Inventory */}
