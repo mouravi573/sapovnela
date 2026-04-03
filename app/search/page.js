@@ -914,17 +914,27 @@ export default function Search() {
             </span>
           ))}
         </div>
-        <div style={{ marginTop: "10px" }}>
+        <div style={{ marginTop: "12px" }}>
           <a
             href="/champions"
             style={{
-              fontSize: "12px",
-              color: "#2A7A6E",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "6px",
+              background: "#FFF3E0",
+              border: "1px solid #FFD97A",
+              color: "#C47D00",
               textDecoration: "none",
-              fontWeight: 500,
+              fontWeight: 700,
+              fontSize: "13px",
+              padding: "7px 16px",
+              borderRadius: "20px",
             }}
           >
-            🏆 {t.championsLink}
+            🏆{" "}
+            {lang === "ge"
+              ? "იხილე საუკეთესო ფასები კატეგორიების მიხედვით →"
+              : "See best prices by category →"}
           </a>
         </div>
       </div>
