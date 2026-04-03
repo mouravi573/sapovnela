@@ -54,7 +54,7 @@ const t = {
     requestsDesc: "Medicines patients searched for but couldn't find nearby",
     requestsEmpty:
       "No patient requests yet — great news, everything is being found!",
-    requestsWaiting: "patients waiting",
+    requestsWaiting: (n) => (n === 1 ? "patient waiting" : "patients waiting"),
   },
   ge: {
     portal: "მართვის პანელი",
@@ -104,7 +104,7 @@ const t = {
     requestsTitle: "პაციენტების მოთხოვნები შენს მიმდებარედ",
     requestsDesc: "წამლები, რომლებიც პაციენტებმა ვერ იპოვეს შენს მახლობლად",
     requestsEmpty: "პაციენტებისგან მოთხოვნა ჯერ არ არის — ყველაფერი ნაპოვნია!",
-    requestsWaiting: "პაციენტი ელოდება",
+    requestsWaiting: (n) => (n === 1 ? "პაციენტი ელოდება" : "პაციენტი ელოდება"),
   },
 };
 
@@ -801,7 +801,7 @@ export default function Dashboard() {
                         marginTop: "2px",
                       }}
                     >
-                      {count} {tr.requestsWaiting}
+                      {count} {tr.requestsWaiting(count)}
                     </div>
                   </div>
                   <span style={{ fontSize: "18px" }}>🔔</span>
