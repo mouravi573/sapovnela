@@ -345,11 +345,13 @@ export default function Dashboard() {
         style={{
           background: "#fff",
           borderBottom: "1px solid #D0EBE7",
-          padding: "0 clamp(16px,4vw,40px)",
-          height: "64px",
+          padding: "10px clamp(16px,4vw,40px)",
+          minHeight: "64px",
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
+          flexWrap: "wrap",
+          gap: "8px",
         }}
       >
         <Link
@@ -450,12 +452,13 @@ export default function Dashboard() {
               border: "1px solid #D0EBE7",
               color: "#7AABA5",
               borderRadius: "20px",
-              padding: "6px 16px",
-              fontSize: "12px",
+              padding: "6px 12px",
+              fontSize: "11px",
               cursor: "pointer",
+              whiteSpace: "nowrap",
             }}
           >
-            {tr.signOut}
+            ↩ {tr.signOut}
           </button>
         </div>
       </nav>
