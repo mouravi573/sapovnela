@@ -219,6 +219,7 @@ ${rawText.substring(0, 3000)}`,
       router.push("/portal/login");
       return;
     }
+
     const { data: pharmacy } = await supabase
       .from("pharmacies")
       .select("id")
@@ -226,6 +227,7 @@ ${rawText.substring(0, 3000)}`,
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
+
     if (!pharmacy) {
       setErrors([
         lang === "en"
@@ -235,6 +237,11 @@ ${rawText.substring(0, 3000)}`,
       setUploading(false);
       return;
     }
+
+    // DELETE all existing inventory first — full overwrite
+    await supabase.from("inventory").delete().eq("pharmacy_id", pharmacy.id);
+
+    // INSERT fresh from CSV
     let saved = 0;
     for (const row of preview) {
       const { data: med } = await supabase
@@ -244,17 +251,14 @@ ${rawText.substring(0, 3000)}`,
         .limit(1)
         .maybeSingle();
       if (med) {
-        await supabase.from("inventory").upsert(
-          {
-            pharmacy_id: pharmacy.id,
-            medicine_id: med.id,
-            price: row.price,
-            stock_count: row.stock,
-            in_stock: row.in_stock,
-            updated_at: new Date().toISOString(),
-          },
-          { onConflict: "pharmacy_id,medicine_id" },
-        );
+        await supabase.from("inventory").insert({
+          pharmacy_id: pharmacy.id,
+          medicine_id: med.id,
+          price: row.price,
+          stock_count: row.stock,
+          in_stock: row.in_stock,
+          updated_at: new Date().toISOString(),
+        });
         saved++;
       }
     }
