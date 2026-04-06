@@ -698,7 +698,7 @@ export default function Admin() {
                             }}
                           >
                             {count}
-                          </span>
+                          </span>{" "}
                           {hasPharmacy ? (
                             <span
                               style={{
