@@ -31,7 +31,6 @@ const translations = {
     results: (n) => `${n} result${n !== 1 ? "s" : ""} · sorted by price`,
     stats: [
       { val: "474", label: "Medicines tracked" },
-      { val: "124", label: "Pharmacies listed" },
       { val: "Free", label: "No registration" },
     ],
     portal: "For Pharmacies",
@@ -71,7 +70,6 @@ const translations = {
     results: (n) => `${n} შედეგი · ფასით დალაგებული`,
     stats: [
       { val: "474", label: "წამალი" },
-      { val: "124", label: "აფთიაქი" },
       { val: "უფასო", label: "დაურეგისტრირებელი" },
     ],
     portal: "აფთიაქებისთვის",
