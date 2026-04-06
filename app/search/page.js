@@ -29,10 +29,10 @@ const translations = {
     searching: "Searching pharmacies near you...",
     otherOptions: "Other options",
     results: (n) => `${n} result${n !== 1 ? "s" : ""} · sorted by price`,
-    stats: [
-      { val: "474", label: "Medicines tracked" },
-      { val: "Free", label: "No registration" },
-    ],
+    medicinesLabel: "Medicines in database",
+    searchedTodayLabel: "Searched today!",
+    pharmaciesLabel: "Pharmacies on platform",
+    districtsLabel: "Districts covered",
     portal: "For Pharmacies",
     generic: "Generic",
     location: "Location",
@@ -68,10 +68,10 @@ const translations = {
     searching: "ვეძებ მახლობელ აფთიაქებს ...",
     otherOptions: "სხვა ვარიანტები",
     results: (n) => `${n} შედეგი · ფასით დალაგებული`,
-    stats: [
-      { val: "474", label: "წამალი" },
-      { val: "უფასო", label: "დაურეგისტრირებელი" },
-    ],
+    medicinesLabel: "წამალი ბაზაში",
+    searchedTodayLabel: "დღეს მოიძებნა!",
+    pharmaciesLabel: "აფთიაქი პლატფორმაზე",
+    districtsLabel: "აქტიური ადგილმდებარეობები",
     portal: "აფთიაქებისთვის",
     generic: "გენერიკული",
     location: "მდებარეობა",
@@ -358,6 +358,12 @@ export default function Search() {
   const [suggestions, setSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [topTags, setTopTags] = useState(DEFAULT_TAGS);
+  const [liveStats, setLiveStats] = useState({
+    medicines: 474,
+    searchedToday: 0,
+    pharmacies: 0,
+    districts: 0,
+  });
   const debounceRef = useRef(null);
 
   useEffect(() => {
@@ -387,6 +393,36 @@ export default function Search() {
             if (top.length > 0) setTopTags(top);
           }
         });
+
+      // Fetch live stats
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      Promise.all([
+        supabase.from("medicines").select("*", { count: "exact", head: true }),
+        supabase
+          .from("search_logs")
+          .select("*", { count: "exact", head: true })
+          .gte("created_at", today.toISOString()),
+        supabase
+          .from("pharmacies")
+          .select("*", { count: "exact", head: true })
+          .eq("is_approved", true),
+        supabase
+          .from("pharmacies")
+          .select("district")
+          .eq("is_approved", true)
+          .not("district", "is", null),
+      ]).then(([meds, searched, pharmacies, districts]) => {
+        const uniqueDistricts = new Set(
+          (districts.data || []).map((p) => p.district),
+        ).size;
+        setLiveStats({
+          medicines: meds.count || 474,
+          searchedToday: searched.count || 0,
+          pharmacies: pharmacies.count || 0,
+          districts: uniqueDistricts,
+        });
+      });
 
       // Load all pharmacies if map=1
       if (window.location.search.includes("map=1")) {
@@ -591,7 +627,6 @@ export default function Search() {
         </button>
         <button
           onClick={() => (window.location.href = "/portal")}
-          className="hide-mobile"
           style={{
             fontSize: "13px",
             background: "#2A7A6E",
@@ -913,27 +948,17 @@ export default function Search() {
             </span>
           ))}
         </div>
-        <div style={{ marginTop: "12px" }}>
+        <div style={{ marginTop: "10px" }}>
           <a
             href="/champions"
             style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "6px",
-              background: "#FFF3E0",
-              border: "1px solid #FFD97A",
-              color: "#C47D00",
+              fontSize: "12px",
+              color: "#2A7A6E",
               textDecoration: "none",
-              fontWeight: 700,
-              fontSize: "13px",
-              padding: "7px 16px",
-              borderRadius: "20px",
+              fontWeight: 500,
             }}
           >
-            🏆{" "}
-            {lang === "ge"
-              ? "იხილე საუკეთესო ფასები კატეგორიების მიხედვით →"
-              : "See best prices by category →"}
+            🏆 {t.championsLink}
           </a>
         </div>
       </div>
@@ -1062,37 +1087,97 @@ export default function Search() {
               gap: "12px",
             }}
           >
-            {t.stats.map((s) => (
+            {/* Medicines card */}
+            <div
+              style={{
+                background: "#fff",
+                border: "1px solid #D0EBE7",
+                borderRadius: "12px",
+                padding: "20px",
+                textAlign: "center",
+              }}
+            >
               <div
-                key={s.label}
+                style={{ fontSize: "26px", fontWeight: 700, color: "#2A7A6E" }}
+              >
+                {liveStats.medicines}
+              </div>
+              <div
+                style={{ fontSize: "12px", color: "#9ABFBB", marginTop: "4px" }}
+              >
+                {t.medicinesLabel}
+              </div>
+              {liveStats.searchedToday > 0 && (
+                <div
+                  style={{
+                    fontSize: "11px",
+                    color: "#2A7A6E",
+                    fontWeight: 600,
+                    marginTop: "6px",
+                    background: "#EBF6F4",
+                    borderRadius: "8px",
+                    padding: "3px 8px",
+                  }}
+                >
+                  {liveStats.searchedToday} {t.searchedTodayLabel}
+                </div>
+              )}
+            </div>
+            {/* Pharmacies card */}
+            <div
+              style={{
+                background: "#fff",
+                border: "1px solid #D0EBE7",
+                borderRadius: "12px",
+                padding: "20px",
+                textAlign: "center",
+              }}
+            >
+              <div
+                style={{ fontSize: "26px", fontWeight: 700, color: "#2A7A6E" }}
+              >
+                {liveStats.pharmacies}
+              </div>
+              <div
+                style={{ fontSize: "12px", color: "#9ABFBB", marginTop: "4px" }}
+              >
+                {t.pharmaciesLabel}
+              </div>
+            </div>
+            {/* Districts card — clickable */}
+            <div
+              onClick={() => (window.location.href = "/search?map=1")}
+              style={{
+                background: "#EBF6F4",
+                border: "1px solid #A8D9D0",
+                borderRadius: "12px",
+                padding: "20px",
+                textAlign: "center",
+                cursor: "pointer",
+              }}
+              onMouseEnter={(e) =>
+                (e.currentTarget.style.background = "#D0EBE7")
+              }
+              onMouseLeave={(e) =>
+                (e.currentTarget.style.background = "#EBF6F4")
+              }
+            >
+              <div
+                style={{ fontSize: "26px", fontWeight: 700, color: "#2A7A6E" }}
+              >
+                {liveStats.districts}
+              </div>
+              <div
                 style={{
-                  background: "#fff",
-                  border: "1px solid #D0EBE7",
-                  borderRadius: "12px",
-                  padding: "20px",
-                  textAlign: "center",
+                  fontSize: "12px",
+                  color: "#2A7A6E",
+                  marginTop: "4px",
+                  fontWeight: 500,
                 }}
               >
-                <div
-                  style={{
-                    fontSize: "26px",
-                    fontWeight: 700,
-                    color: "#2A7A6E",
-                  }}
-                >
-                  {s.val}
-                </div>
-                <div
-                  style={{
-                    fontSize: "12px",
-                    color: "#9ABFBB",
-                    marginTop: "4px",
-                  }}
-                >
-                  {s.label}
-                </div>
+                {t.districtsLabel} →
               </div>
-            ))}
+            </div>
           </div>
         )}
 
