@@ -82,7 +82,11 @@ async function fetchKalshiAdvanceMarkets(): Promise<KalshiMarket[]> {
 }
 
 function normalizeTeam(name: string): string {
-  return name.toLowerCase().trim().replace(/[^a-z]/g, "");
+  return name
+    .toLowerCase()
+    .replace(/\s*advances\s*$/i, "")
+    .trim()
+    .replace(/[^a-z]/g, "");
 }
 
 // Filter sub-markets to just the moneyline "Will X win" questions,
@@ -152,10 +156,6 @@ export async function GET(req: NextRequest) {
       total_polymarket_events: events.length,
       total_kalshi_advance_markets: kalshiMarkets.length,
       matched_count: sorted.length,
-      debug_sample_poly_questions: events
-        .flatMap(e => (e.markets ?? []).map(m => m.question))
-        .slice(0, 15),
-      debug_sample_kalshi_teams: kalshiMarkets.map(m => m.yes_sub_title).slice(0, 15),
       timestamp: new Date().toISOString(),
     });
   } catch (e) {
