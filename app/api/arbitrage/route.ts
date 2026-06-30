@@ -1,29 +1,46 @@
 import type { NextRequest } from "next/server";
-import { getMarkets } from "@/lib/db";
 
 /**
- * Cross-platform arbitrage — per-match World Cup advancement markets.
+ * Cross-platform arbitrage — per-match World Cup moneyline markets.
  *
- * Both platforms run "Will [Team] advance past [Opponent]?" markets for
- * each knockout match. These have real volume (millions of dollars on
- * Kalshi alone) and resolve within days, unlike tournament-winner markets
- * which are thin and weeks from resolving.
+ * Self-updating: pulls Polymarket's full World Cup series via series_id
+ * (no hardcoded match list, works for every match all tournament long)
+ * and Kalshi's KXWCADVANCE series, both public, no auth.
  *
- * Kalshi series: KXWCADVANCE, ticker format KXWCADVANCE-{YYMonDD}{team1}{team2}
- *   e.g. KXWCADVANCE-26JUN30MEXECU for Mexico vs Ecuador on June 30 2026.
- * Discovered via the public events endpoint, no auth required.
+ * Polymarket's soccer-fifwc series (id 11433) lists every match event as
+ * it's created — past, live, and upcoming. We filter for open, moneyline-
+ * type sub-markets (team-to-win, not props/player markets) and match them
+ * against Kalshi's per-match advance markets by team name.
  */
+
+const POLYMARKET_SERIES_ID = "11433"; // soccer-fifwc
+
+interface PolyMarketEvent {
+  id: string;
+  slug: string;
+  title: string;
+  closed: boolean;
+  startDate: string;
+  markets: PolySubMarket[];
+}
+
+interface PolySubMarket {
+  question: string;
+  outcomePrices: string;
+  volume: string;
+  volume24hr: number;
+  sportsMarketType?: string;
+  closed: boolean;
+  groupItemTitle: string;
+}
 
 interface KalshiMarket {
   ticker: string;
   yes_sub_title: string;
-  no_sub_title: string;
   yes_bid_dollars: string;
   yes_ask_dollars: string;
   volume_fp: string;
-  volume_24h_fp: string;
   title: string;
-  close_time: string;
 }
 
 interface MatchComparison {
@@ -35,6 +52,19 @@ interface MatchComparison {
   kalshi_volume: number;
   gap: number | null;
   gap_pct: number | null;
+}
+
+async function fetchPolymarketWorldCupEvents(): Promise<PolyMarketEvent[]> {
+  try {
+    const res = await fetch(
+      `https://gamma-api.polymarket.com/events?series_id=${POLYMARKET_SERIES_ID}&closed=false&limit=100`,
+      { next: { revalidate: 180 } }
+    );
+    if (!res.ok) return [];
+    return await res.json();
+  } catch {
+    return [];
+  }
 }
 
 async function fetchKalshiAdvanceMarkets(): Promise<KalshiMarket[]> {
@@ -51,78 +81,77 @@ async function fetchKalshiAdvanceMarkets(): Promise<KalshiMarket[]> {
   }
 }
 
-function isMatchAdvanceQuestion(question: string): boolean {
-  const q = question.toLowerCase();
-  return q.includes(" vs ") || q.includes(" vs. ") || /win on \d{4}-\d{2}-\d{2}/.test(q);
-}
-
-// Extract two team names from a Polymarket "Team A vs Team B" style question
-function extractTeams(question: string): [string, string] | null {
-  const match = question.match(/(.+?)\s+vs\.?\s+(.+?)(\?|$)/i);
-  if (!match) return null;
-  return [match[1].trim(), match[2].trim()];
-}
-
 function normalizeTeam(name: string): string {
   return name.toLowerCase().trim().replace(/[^a-z]/g, "");
 }
 
+// Filter sub-markets to just the moneyline "Will X win" questions,
+// skip draws, props, player-specific markets, and already-closed events
+function isMoneylineWinMarket(m: PolySubMarket): boolean {
+  if (m.closed) return false;
+  const q = m.question.toLowerCase();
+  return q.startsWith("will ") && q.includes(" win on ");
+}
+
 export async function GET(req: NextRequest) {
   try {
-    const [polyMarkets, kalshiMarkets] = await Promise.all([
-      getMarkets({ limit: 500 }),
+    const [events, kalshiMarkets] = await Promise.all([
+      fetchPolymarketWorldCupEvents(),
       fetchKalshiAdvanceMarkets(),
     ]);
 
-    const polyMatches = polyMarkets.filter(m => isMatchAdvanceQuestion(m.question ?? ""));
-
-    // Index Kalshi markets by normalized team name for lookup
     const kalshiByTeam = new Map<string, KalshiMarket>();
     for (const m of kalshiMarkets) {
-      const team = normalizeTeam(m.yes_sub_title);
-      kalshiByTeam.set(team, m);
+      kalshiByTeam.set(normalizeTeam(m.yes_sub_title), m);
     }
 
     const results: MatchComparison[] = [];
 
-    for (const pm of polyMatches) {
-      const teams = extractTeams(pm.question ?? "");
-      if (!teams) continue;
-      const [teamA] = teams;
-      const normA = normalizeTeam(teamA);
-      const kalshiMatch = kalshiByTeam.get(normA);
+    for (const event of events) {
+      if (event.closed) continue;
+      const moneylineMarkets = (event.markets ?? []).filter(isMoneylineWinMarket);
 
-      const polyPrice = pm.yes_price;
-      const kalshiPrice = kalshiMatch
-        ? (parseFloat(kalshiMatch.yes_bid_dollars) + parseFloat(kalshiMatch.yes_ask_dollars)) / 2
-        : null;
+      for (const m of moneylineMarkets) {
+        let yesPrice = 0;
+        try {
+          const prices = JSON.parse(m.outcomePrices);
+          yesPrice = parseFloat(prices[0]);
+        } catch {
+          continue;
+        }
 
-      const gap = kalshiPrice !== null ? Math.abs(polyPrice - kalshiPrice) : null;
-      const gapPct = gap !== null && Math.max(polyPrice, kalshiPrice ?? 0) > 0
-        ? gap / Math.max(polyPrice, kalshiPrice ?? 0.001)
-        : null;
+        const team = m.groupItemTitle || m.question.replace("Will ", "").split(" win on ")[0];
+        const normTeam = normalizeTeam(team);
+        const kalshiMatch = kalshiByTeam.get(normTeam);
 
-      results.push({
-        matchup: pm.question ?? "",
-        team: teamA,
-        polymarket_price: polyPrice,
-        polymarket_volume: pm.volume_24h ?? 0,
-        kalshi_price: kalshiPrice,
-        kalshi_volume: kalshiMatch ? parseFloat(kalshiMatch.volume_fp) : 0,
-        gap,
-        gap_pct: gapPct,
-      });
+        if (!kalshiMatch) continue; // only show matches we can actually compare
+
+        const kalshiPrice = (parseFloat(kalshiMatch.yes_bid_dollars) + parseFloat(kalshiMatch.yes_ask_dollars)) / 2;
+        const gap = Math.abs(yesPrice - kalshiPrice);
+        const gapPct = Math.max(yesPrice, kalshiPrice) > 0 ? gap / Math.max(yesPrice, kalshiPrice, 0.001) : null;
+
+        results.push({
+          matchup: event.title,
+          team,
+          polymarket_price: yesPrice,
+          polymarket_volume: m.volume24hr ?? 0,
+          kalshi_price: kalshiPrice,
+          kalshi_volume: parseFloat(kalshiMatch.volume_fp) || 0,
+          gap,
+          gap_pct: gapPct,
+        });
+      }
     }
 
-    const matched = results
-      .filter(r => r.kalshi_price !== null)
-      .sort((a, b) => (b.kalshi_volume + b.polymarket_volume) - (a.kalshi_volume + a.polymarket_volume));
+    const sorted = results.sort(
+      (a, b) => (b.kalshi_volume + b.polymarket_volume) - (a.kalshi_volume + a.polymarket_volume)
+    );
 
     return Response.json({
-      comparisons: matched,
-      total_polymarket_matches: polyMatches.length,
+      comparisons: sorted,
+      total_polymarket_events: events.length,
       total_kalshi_advance_markets: kalshiMarkets.length,
-      matched_count: matched.length,
+      matched_count: sorted.length,
       timestamp: new Date().toISOString(),
     });
   } catch (e) {
