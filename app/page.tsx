@@ -49,6 +49,14 @@ export default async function Home() {
       href: '/worldcup',
     },
     {
+      name: 'Stocks — Weekly Up/Down',
+      category: 'Equities',
+      status: 'active',
+      marketsTracked: 0,
+      description: 'Polymarket strike prices vs real-time Yahoo Finance quotes. Flags markets where the real price already cleared the strike.',
+      href: '/stocks',
+    },
+    {
       name: 'Fed Rate Decisions',
       category: 'Economics',
       status: 'dormant',
