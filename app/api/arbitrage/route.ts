@@ -152,6 +152,10 @@ export async function GET(req: NextRequest) {
       total_polymarket_events: events.length,
       total_kalshi_advance_markets: kalshiMarkets.length,
       matched_count: sorted.length,
+      debug_sample_poly_questions: events
+        .flatMap(e => (e.markets ?? []).map(m => m.question))
+        .slice(0, 15),
+      debug_sample_kalshi_teams: kalshiMarkets.map(m => m.yes_sub_title).slice(0, 15),
       timestamp: new Date().toISOString(),
     });
   } catch (e) {
