@@ -23,7 +23,7 @@ export async function upsertMarkets(markets: PolyMarket[]): Promise<number> {
   let total = 0;
   for (let i = 0; i < deduped.length; i += 100) {
     const chunk = deduped.slice(i, i + 100);
-    const { count, error } = await db
+    const { error } = await db
       .from("markets")
       .upsert(chunk, { onConflict: "condition_id" })
       .select("condition_id");
@@ -69,13 +69,10 @@ export async function saveSignals(signals: Signal[]): Promise<number> {
   if (!signals.length) return 0;
   const db = getServiceClient();
 
-  const { count, error } = await db
-    .from("signals")
-    .insert(signals)
-    .select("id", { count: "exact", head: true });
+  const { error } = await db.from("signals").insert(signals).select("id");
 
   if (error) throw new Error(`saveSignals: ${error.message}`);
-  return count ?? signals.length;
+  return signals.length;
 }
 
 export async function getActiveSignals(limit = 50): Promise<Signal[]> {
@@ -177,10 +174,10 @@ export async function getClosedPositions(limit = 50): Promise<Position[]> {
 
 export async function getSystemStats(): Promise<SystemStats> {
   const [marketsRes, signalsRes, positionsRes, closedRes] = await Promise.all([
-    supabase.from("markets").select("*", { count: "exact", head: true }),
+    supabase.from("markets").select("condition_id"),
     supabase
       .from("signals")
-      .select("*", { count: "exact", head: true })
+      .select("id")
       .eq("acted_on", false)
       .gt("expires_at", new Date(Date.now()).toISOString()),
     supabase.from("positions").select("*").eq("status", "open"),
@@ -208,8 +205,8 @@ export async function getSystemStats(): Promise<SystemStats> {
     closedPositions.length > 0 ? wins / closedPositions.length : 0;
 
   return {
-    markets_tracked: marketsRes.count ?? 0,
-    active_signals: signalsRes.count ?? 0,
+    markets_tracked: marketsRes.data?.length ?? 0,
+    active_signals: signalsRes.data?.length ?? 0,
     open_positions: openPositions.length,
     total_deployed_usdc: totalDeployed,
     unrealized_pnl: unrealizedPnl,
