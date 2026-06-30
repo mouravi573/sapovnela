@@ -1,241 +1,229 @@
 export const dynamic = 'force-dynamic'
 
-import { getSystemStats, getActiveSignals, getOpenPositions, getCalibration } from '@/lib/db'
-import type { Signal, Position, SystemStats, CalibrationBucket } from '@/types'
+import Link from 'next/link'
+import { getMarkets } from '@/lib/db'
 
-const STRENGTH_COLOR: Record<string, string> = {
-  strong: 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300',
-  medium: 'bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-300',
-  weak: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300',
+interface InstrumentStatus {
+  name: string
+  category: string
+  status: 'active' | 'dormant' | 'planned'
+  marketsTracked: number
+  description: string
+  href?: string
 }
 
-const TYPE_LABEL: Record<string, string> = {
-  arb: '⚖️ Arb',
-  model: '🧮 Model',
-  volume_spike: '📈 Volume',
-  momentum: '🚀 Momentum',
+async function getWorldCupMarketCount(): Promise<number> {
+  try {
+    const markets = await getMarkets({ limit: 500 })
+    return markets.filter(m => {
+      const q = m.question?.toLowerCase() ?? ''
+      return q.includes('world cup') || q.includes('fifa')
+    }).length
+  } catch {
+    return 0
+  }
 }
 
-function StatCard({ label, value, sub, accent }: {
-  label: string; value: string; sub?: string; accent?: boolean
-}) {
-  return (
-    <div className={`rounded-xl border p-4 ${accent
-      ? 'border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950/40'
-      : 'border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-900'
-    }`}>
-      <p className="text-xs font-medium uppercase tracking-wider text-zinc-400">{label}</p>
-      <p className="mt-1 text-2xl font-bold text-zinc-900 dark:text-white">{value}</p>
-      {sub && <p className="mt-0.5 text-xs text-zinc-400">{sub}</p>}
-    </div>
-  )
+async function getTotalMarketCount(): Promise<number> {
+  try {
+    const markets = await getMarkets({ limit: 500 })
+    return markets.length
+  } catch {
+    return 0
+  }
 }
 
-function SignalRow({ signal }: { signal: Signal }) {
-  const strengthClass = STRENGTH_COLOR[signal.strength] ?? ''
-  return (
-    <tr className="border-b border-zinc-100 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-800/50">
-      <td className="py-3 pr-3 text-sm text-zinc-700 dark:text-zinc-200 max-w-xs">
-        <span className="line-clamp-2">{signal.question}</span>
-      </td>
-      <td className="py-3 pr-3">
-        <span className="text-xs font-medium">{TYPE_LABEL[signal.type] ?? signal.type}</span>
-      </td>
-      <td className="py-3 pr-3">
-        <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${strengthClass}`}>
-          {signal.strength}
-        </span>
-      </td>
-      <td className="py-3 pr-3 text-sm font-medium">
-        <span className={signal.side === 'YES' ? 'text-green-600' : 'text-red-600'}>
-          {signal.side}
-        </span>
-      </td>
-      <td className="py-3 pr-3 text-sm tabular-nums">{(signal.poly_price * 100).toFixed(0)}¢</td>
-      <td className="py-3 text-sm tabular-nums font-semibold text-green-600">
-        +{(signal.edge * 100).toFixed(1)}¢
-      </td>
-    </tr>
-  )
-}
-
-function PositionRow({ position }: { position: Position }) {
-  const pnlPos = position.unrealized_pnl >= 0
-  return (
-    <tr className="border-b border-zinc-100 dark:border-zinc-800">
-      <td className="py-3 pr-3 text-sm max-w-xs">
-        <span className="line-clamp-2">{position.question}</span>
-      </td>
-      <td className="py-3 pr-3">
-        <span className={`text-sm font-medium ${position.side === 'YES' ? 'text-green-600' : 'text-red-600'}`}>
-          {position.side}
-        </span>
-      </td>
-      <td className="py-3 pr-3 text-sm tabular-nums">{(position.avg_entry_price * 100).toFixed(0)}¢</td>
-      <td className="py-3 pr-3 text-sm tabular-nums">{(position.current_price * 100).toFixed(0)}¢</td>
-      <td className="py-3 pr-3 text-sm tabular-nums">${position.cost_usdc.toFixed(0)}</td>
-      <td className={`py-3 text-sm tabular-nums font-semibold ${pnlPos ? 'text-green-600' : 'text-red-600'}`}>
-        {pnlPos ? '+' : ''}${position.unrealized_pnl.toFixed(2)}
-      </td>
-    </tr>
-  )
-}
-
-function CalibrationChart({ buckets }: { buckets: CalibrationBucket[] }) {
-  if (buckets.length === 0) return (
-    <p className="text-sm text-zinc-400">No resolved positions yet — calibration available after first closed trades.</p>
-  )
-
-  return (
-    <div className="space-y-2">
-      {buckets.map(b => (
-        <div key={b.predicted_range} className="flex items-center gap-3">
-          <span className="w-16 text-right text-xs text-zinc-400 tabular-nums">{b.predicted_range}</span>
-          <div className="relative flex-1 h-5 rounded bg-zinc-100 dark:bg-zinc-800">
-            {/* Predicted bar */}
-            <div
-              className="absolute top-0 left-0 h-full rounded bg-blue-200 dark:bg-blue-800"
-              style={{ width: `${b.predicted_mid * 100}%` }}
-            />
-            {/* Actual bar */}
-            <div
-              className="absolute top-0 left-0 h-full rounded bg-blue-500 dark:bg-blue-400 opacity-80"
-              style={{ width: `${b.actual_win_rate * 100}%` }}
-            />
-          </div>
-          <span className="w-12 text-xs tabular-nums text-zinc-500">
-            {(b.actual_win_rate * 100).toFixed(0)}%
-          </span>
-          <span className="w-8 text-xs text-zinc-400">n={b.sample_count}</span>
-        </div>
-      ))}
-      <p className="text-xs text-zinc-400 mt-2">
-        <span className="inline-block w-3 h-3 rounded bg-blue-200 dark:bg-blue-800 mr-1" />predicted
-        <span className="inline-block w-3 h-3 rounded bg-blue-500 dark:bg-blue-400 mx-1" />actual
-      </p>
-    </div>
-  )
-}
-
-export default async function Dashboard() {
-  const [stats, signals, positions, calibration] = await Promise.all([
-    getSystemStats().catch(() => null as SystemStats | null),
-    getActiveSignals(20).catch(() => [] as Signal[]),
-    getOpenPositions().catch(() => [] as Position[]),
-    getCalibration().catch(() => [] as CalibrationBucket[]),
+export default async function Home() {
+  const [wcCount, totalCount] = await Promise.all([
+    getWorldCupMarketCount(),
+    getTotalMarketCount(),
   ])
 
-  const totalPnl = (stats?.unrealized_pnl ?? 0) + (stats?.realized_pnl ?? 0)
-  const pnlPos = totalPnl >= 0
+  const instruments: InstrumentStatus[] = [
+    {
+      name: 'FIFA World Cup 2026',
+      category: 'Sports',
+      status: 'active',
+      marketsTracked: wcCount,
+      description: 'Tournament winner odds, ranked by implied probability. Knockout stage matches resolve daily through July 19.',
+      href: '/worldcup',
+    },
+    {
+      name: 'Fed Rate Decisions',
+      category: 'Economics',
+      status: 'dormant',
+      marketsTracked: 0,
+      description: 'CME FedWatch vs Polymarket comparison. Next FOMC meeting July 29 — markets not yet open on Polymarket.',
+    },
+    {
+      name: 'Cross-platform Arbitrage',
+      category: 'Multi-source',
+      status: 'planned',
+      marketsTracked: 0,
+      description: 'Kalshi vs Polymarket price divergence scanner. Built, not yet active.',
+    },
+  ]
+
+  const statusConfig = {
+    active: { label: 'LIVE', color: 'var(--green)', bg: 'var(--green-dim)' },
+    dormant: { label: 'DORMANT', color: 'var(--amber)', bg: 'var(--amber-dim)' },
+    planned: { label: 'PLANNED', color: 'var(--dimmer)', bg: 'transparent' },
+  }
 
   return (
-    <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950">
-      <header className="border-b border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
-        <div className="mx-auto max-w-7xl px-6 py-4 flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-bold text-zinc-900 dark:text-white">Polymarket Dashboard</h1>
-            <p className="text-xs text-zinc-400">Strategy engine · Georgia</p>
+    <div style={{ minHeight: '100vh', background: '#080b0e', color: '#dde3ed' }}>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+        * { box-sizing: border-box; }
+        html, body { background: #080b0e; }
+        .root-mono { font-family: 'JetBrains Mono', monospace; }
+        .root-sans { font-family: 'Space Grotesk', sans-serif; }
+        .root-card { transition: border-color 0.2s, transform 0.2s; }
+        .root-card:hover { border-color: #243040; transform: translateY(-1px); }
+        .root-cta:hover { opacity: 0.85; }
+      `}</style>
+
+      <div style={{ maxWidth: 880, margin: '0 auto', padding: '0 24px 100px' }}>
+
+        {/* Nav */}
+        <nav style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '22px 0 20px', borderBottom: '1px solid #1a2230', marginBottom: 48 }}>
+          <div className="root-mono" style={{ fontSize: 13, fontWeight: 600, color: '#00c9a7', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+            Sapovnela <span style={{ color: '#4a5568', fontWeight: 400 }}>/ Signal Engine</span>
           </div>
-          <div className="text-xs text-zinc-400">
-            {stats?.last_sync
-              ? `Last sync: ${new Date(stats.last_sync).toLocaleTimeString('ka-GE')}`
-              : 'Not synced'}
+          <div className="root-mono" style={{ fontSize: 11, color: '#8892a4', display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#3dd68c', boxShadow: '0 0 8px #3dd68c', display: 'inline-block' }} />
+            Operational
+          </div>
+        </nav>
+
+        {/* Hero */}
+        <section style={{ marginBottom: 56 }}>
+          <h1 className="root-sans" style={{ fontSize: 32, fontWeight: 300, letterSpacing: '-0.02em', lineHeight: 1.25, marginBottom: 12 }}>
+            Prediction market <strong style={{ fontWeight: 600 }}>signal engine</strong>
+          </h1>
+          <p style={{ fontSize: 14, color: '#8892a4', lineHeight: 1.7, maxWidth: 560 }}>
+            Tracks Polymarket prices against external benchmarks to surface mispricings.
+            Built and operated from Tbilisi, Georgia. Paper trading mode — no live capital deployed.
+          </p>
+        </section>
+
+        {/* Stats strip */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 1, background: '#1a2230', border: '1px solid #1a2230', marginBottom: 56 }}>
+          <div style={{ background: '#0e1318', padding: '18px 20px' }}>
+            <div className="root-mono" style={{ fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#4a5568', marginBottom: 6 }}>
+              Total markets tracked
+            </div>
+            <div className="root-mono" style={{ fontSize: 24, fontWeight: 600, color: '#00c9a7' }}>{totalCount}</div>
+          </div>
+          <div style={{ background: '#0e1318', padding: '18px 20px' }}>
+            <div className="root-mono" style={{ fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#4a5568', marginBottom: 6 }}>
+              Active instruments
+            </div>
+            <div className="root-mono" style={{ fontSize: 24, fontWeight: 600, color: '#3dd68c' }}>
+              {instruments.filter(i => i.status === 'active').length} / {instruments.length}
+            </div>
+          </div>
+          <div style={{ background: '#0e1318', padding: '18px 20px' }}>
+            <div className="root-mono" style={{ fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#4a5568', marginBottom: 6 }}>
+              Mode
+            </div>
+            <div className="root-mono" style={{ fontSize: 24, fontWeight: 600, color: '#f5a623' }}>PAPER</div>
           </div>
         </div>
-      </header>
 
-      <main className="mx-auto max-w-7xl px-6 py-8 space-y-8">
+        {/* Instruments ranked list */}
+        <section style={{ marginBottom: 48 }}>
+          <div className="root-mono" style={{ fontSize: 10, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#4a5568', marginBottom: 16 }}>
+            Instruments monitored — ranked by activity
+          </div>
 
-        {/* Stats row */}
-        {stats && (
-          <section className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-7">
-            <StatCard label="Markets" value={stats.markets_tracked.toString()} />
-            <StatCard label="Signals" value={stats.active_signals.toString()} accent />
-            <StatCard label="Positions" value={stats.open_positions.toString()} />
-            <StatCard label="Deployed" value={`$${stats.total_deployed_usdc.toFixed(0)}`} />
-            <StatCard
-              label="Unrealized"
-              value={`${stats.unrealized_pnl >= 0 ? '+' : ''}$${stats.unrealized_pnl.toFixed(2)}`}
-            />
-            <StatCard
-              label="Realized"
-              value={`${stats.realized_pnl >= 0 ? '+' : ''}$${stats.realized_pnl.toFixed(2)}`}
-            />
-            <StatCard
-              label="Win rate"
-              value={`${(stats.win_rate * 100).toFixed(0)}%`}
-              sub={`Total P&L: ${pnlPos ? '+' : ''}$${totalPnl.toFixed(2)}`}
-            />
-          </section>
-        )}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {instruments.map((inst, i) => {
+              const cfg = statusConfig[inst.status]
+              const Wrapper = inst.href ? Link : 'div'
+              const wrapperProps = inst.href ? { href: inst.href } : {}
 
-        {/* Active signals */}
-        <section>
-          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-zinc-400">
-            Active signals ({signals.length})
-          </h2>
-          {signals.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-zinc-300 p-8 text-center dark:border-zinc-700">
-              <p className="text-zinc-400 text-sm">No active signals. Run POST /api/signals to scan.</p>
-            </div>
-          ) : (
-            <div className="overflow-x-auto rounded-xl border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-900">
-              <table className="w-full text-left">
-                <thead>
-                  <tr className="border-b border-zinc-100 dark:border-zinc-800">
-                    {['Question', 'Type', 'Strength', 'Side', 'Price', 'Edge'].map(h => (
-                      <th key={h} className="py-3 pr-3 text-xs font-medium uppercase tracking-wider text-zinc-400">
-                        {h}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {signals.map((s, i) => <SignalRow key={s.id ?? i} signal={s} />)}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </section>
+              return (
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                <Wrapper
+                  key={inst.name}
+                  {...(wrapperProps as any)}
+                  className="root-card"
+                  style={{
+                    display: 'block',
+                    textDecoration: 'none',
+                    color: 'inherit',
+                    background: '#0e1318',
+                    border: '1px solid #1a2230',
+                    padding: '20px 22px',
+                    cursor: inst.href ? 'pointer' : 'default',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, marginBottom: 10 }}>
+                    <div style={{ display: 'flex', alignItems: 'baseline', gap: 12 }}>
+                      <span className="root-mono" style={{ fontSize: 11, color: '#4a5568' }}>{String(i + 1).padStart(2, '0')}</span>
+                      <span className="root-sans" style={{ fontSize: 16, fontWeight: 600 }}>{inst.name}</span>
+                      <span className="root-mono" style={{ fontSize: 10, color: '#8892a4', letterSpacing: '0.04em' }}>{inst.category}</span>
+                    </div>
+                    <span
+                      className="root-mono"
+                      style={{
+                        fontSize: 9,
+                        letterSpacing: '0.08em',
+                        padding: '3px 9px',
+                        color: cfg.color,
+                        background: cfg.bg,
+                        border: `1px solid ${cfg.color}33`,
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {cfg.label}
+                    </span>
+                  </div>
 
-        {/* Open positions */}
-        <section>
-          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-zinc-400">
-            Open positions ({positions.length})
-          </h2>
-          {positions.length === 0 ? (
-            <p className="text-sm text-zinc-400">No open positions.</p>
-          ) : (
-            <div className="overflow-x-auto rounded-xl border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-900">
-              <table className="w-full text-left">
-                <thead>
-                  <tr className="border-b border-zinc-100 dark:border-zinc-800">
-                    {['Question', 'Side', 'Entry', 'Current', 'Size', 'P&L'].map(h => (
-                      <th key={h} className="py-3 pr-3 text-xs font-medium uppercase tracking-wider text-zinc-400">
-                        {h}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {positions.map((p, i) => <PositionRow key={p.id ?? i} position={p} />)}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </section>
+                  <p style={{ fontSize: 13, color: '#8892a4', lineHeight: 1.6, marginBottom: inst.status === 'active' ? 12 : 0 }}>
+                    {inst.description}
+                  </p>
 
-        {/* Calibration */}
-        <section>
-          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-zinc-400">
-            Calibration (did 70% signals win 70%?)
-          </h2>
-          <div className="rounded-xl border border-zinc-200 bg-white p-6 dark:border-zinc-700 dark:bg-zinc-900">
-            <CalibrationChart buckets={calibration} />
+                  {inst.status === 'active' && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                      <span className="root-mono" style={{ fontSize: 11, color: '#00c9a7' }}>
+                        {inst.marketsTracked} markets tracked
+                      </span>
+                      <span className="root-mono" style={{ fontSize: 11, color: '#4a5568' }}>→ View dashboard</span>
+                    </div>
+                  )}
+                </Wrapper>
+              )
+            })}
           </div>
         </section>
 
-      </main>
+        {/* CTA */}
+        <section style={{ textAlign: 'center', padding: '40px 0', borderTop: '1px solid #1a2230' }}>
+          <p style={{ fontSize: 13, color: '#8892a4', marginBottom: 16 }}>
+            The World Cup signal engine is live and updating every 5 minutes.
+          </p>
+          <Link
+            href="/worldcup"
+            className="root-cta root-mono"
+            style={{
+              display: 'inline-block',
+              fontSize: 12,
+              letterSpacing: '0.06em',
+              textTransform: 'uppercase',
+              padding: '12px 28px',
+              background: '#00c9a7',
+              color: '#080b0e',
+              fontWeight: 600,
+              textDecoration: 'none',
+            }}
+          >
+            Open World Cup Dashboard →
+          </Link>
+        </section>
+
+      </div>
     </div>
   )
 }
