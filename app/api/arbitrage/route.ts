@@ -2,30 +2,32 @@ import type { NextRequest } from "next/server";
 import { getMarkets } from "@/lib/db";
 
 /**
- * Cross-platform arbitrage — World Cup tournament winner markets.
+ * Cross-platform arbitrage — per-match World Cup advancement markets.
  *
- * Both Polymarket and Kalshi run independent "Will [team] win the 2026
- * World Cup?" markets. Since both ask the identical real-world question,
- * any meaningful price gap between them is a genuine arbitrage signal —
- * not a judgment call, just two markets disagreeing on the same fact.
+ * Both platforms run "Will [Team] advance past [Opponent]?" markets for
+ * each knockout match. These have real volume (millions of dollars on
+ * Kalshi alone) and resolve within days, unlike tournament-winner markets
+ * which are thin and weeks from resolving.
  *
- * Kalshi's market data is fully public, no auth required:
- * https://api.elections.kalshi.com/trade-api/v2/markets?series_ticker=KXMENWORLDCUP
- *
- * Country name normalization handles the small differences between how
- * each platform labels teams (e.g. "Congo DR" vs "DR Congo").
+ * Kalshi series: KXWCADVANCE, ticker format KXWCADVANCE-{YYMonDD}{team1}{team2}
+ *   e.g. KXWCADVANCE-26JUN30MEXECU for Mexico vs Ecuador on June 30 2026.
+ * Discovered via the public events endpoint, no auth required.
  */
 
 interface KalshiMarket {
   ticker: string;
   yes_sub_title: string;
+  no_sub_title: string;
   yes_bid_dollars: string;
   yes_ask_dollars: string;
   volume_fp: string;
   volume_24h_fp: string;
+  title: string;
+  close_time: string;
 }
 
-interface ArbResult {
+interface MatchComparison {
+  matchup: string;
   team: string;
   polymarket_price: number | null;
   polymarket_volume: number;
@@ -35,30 +37,11 @@ interface ArbResult {
   gap_pct: number | null;
 }
 
-// Normalize team names between platforms — they don't always match exactly
-const NAME_MAP: Record<string, string> = {
-  "congo dr": "congo dr",
-  "dr congo": "congo dr",
-  "democratic republic of the congo": "congo dr",
-  "bosnia and herzegovina": "bosnia-herzegovina",
-  "bosnia-herzegovina": "bosnia-herzegovina",
-  "ivory coast": "ivory coast",
-  "côte d'ivoire": "ivory coast",
-  "cote d'ivoire": "ivory coast",
-  "usa": "usa",
-  "united states": "usa",
-};
-
-function normalizeTeam(name: string): string {
-  const lower = name.toLowerCase().trim();
-  return NAME_MAP[lower] ?? lower;
-}
-
-async function fetchKalshiWorldCupMarkets(): Promise<KalshiMarket[]> {
+async function fetchKalshiAdvanceMarkets(): Promise<KalshiMarket[]> {
   try {
     const res = await fetch(
-      "https://api.elections.kalshi.com/trade-api/v2/markets?series_ticker=KXMENWORLDCUP&status=open&limit=100",
-      { next: { revalidate: 300 } }
+      "https://api.elections.kalshi.com/trade-api/v2/markets?series_ticker=KXWCADVANCE&status=open&limit=200",
+      { next: { revalidate: 180 } }
     );
     if (!res.ok) return [];
     const data = await res.json();
@@ -68,33 +51,46 @@ async function fetchKalshiWorldCupMarkets(): Promise<KalshiMarket[]> {
   }
 }
 
-function isWorldCupWinnerMarket(question: string): boolean {
+function isMatchAdvanceQuestion(question: string): boolean {
   const q = question.toLowerCase();
-  return q.includes("win the 2026 fifa world cup") || q.includes("win the 2026 men's world cup");
+  return q.includes(" vs ") || q.includes(" vs. ") || /win on \d{4}-\d{2}-\d{2}/.test(q);
+}
+
+// Extract two team names from a Polymarket "Team A vs Team B" style question
+function extractTeams(question: string): [string, string] | null {
+  const match = question.match(/(.+?)\s+vs\.?\s+(.+?)(\?|$)/i);
+  if (!match) return null;
+  return [match[1].trim(), match[2].trim()];
+}
+
+function normalizeTeam(name: string): string {
+  return name.toLowerCase().trim().replace(/[^a-z]/g, "");
 }
 
 export async function GET(req: NextRequest) {
   try {
     const [polyMarkets, kalshiMarkets] = await Promise.all([
       getMarkets({ limit: 500 }),
-      fetchKalshiWorldCupMarkets(),
+      fetchKalshiAdvanceMarkets(),
     ]);
 
-    const polyWinners = polyMarkets.filter(m => isWorldCupWinnerMarket(m.question ?? ""));
+    const polyMatches = polyMarkets.filter(m => isMatchAdvanceQuestion(m.question ?? ""));
 
+    // Index Kalshi markets by normalized team name for lookup
     const kalshiByTeam = new Map<string, KalshiMarket>();
     for (const m of kalshiMarkets) {
       const team = normalizeTeam(m.yes_sub_title);
       kalshiByTeam.set(team, m);
     }
 
-    const results: ArbResult[] = polyWinners.map(pm => {
-      const team = (pm.question ?? "")
-        .replace("Will ", "")
-        .replace(" win the 2026 FIFA World Cup?", "")
-        .trim();
-      const normalizedTeam = normalizeTeam(team);
-      const kalshiMatch = kalshiByTeam.get(normalizedTeam);
+    const results: MatchComparison[] = [];
+
+    for (const pm of polyMatches) {
+      const teams = extractTeams(pm.question ?? "");
+      if (!teams) continue;
+      const [teamA] = teams;
+      const normA = normalizeTeam(teamA);
+      const kalshiMatch = kalshiByTeam.get(normA);
 
       const polyPrice = pm.yes_price;
       const kalshiPrice = kalshiMatch
@@ -106,26 +102,27 @@ export async function GET(req: NextRequest) {
         ? gap / Math.max(polyPrice, kalshiPrice ?? 0.001)
         : null;
 
-      return {
-        team,
+      results.push({
+        matchup: pm.question ?? "",
+        team: teamA,
         polymarket_price: polyPrice,
         polymarket_volume: pm.volume_24h ?? 0,
         kalshi_price: kalshiPrice,
-        kalshi_volume: kalshiMatch ? parseFloat(kalshiMatch.volume_24h_fp) : 0,
+        kalshi_volume: kalshiMatch ? parseFloat(kalshiMatch.volume_fp) : 0,
         gap,
         gap_pct: gapPct,
-      };
-    });
+      });
+    }
 
-    const sorted = results
+    const matched = results
       .filter(r => r.kalshi_price !== null)
-      .sort((a, b) => (b.gap ?? 0) - (a.gap ?? 0));
+      .sort((a, b) => (b.kalshi_volume + b.polymarket_volume) - (a.kalshi_volume + a.polymarket_volume));
 
     return Response.json({
-      comparisons: sorted,
-      total_polymarket_teams: polyWinners.length,
-      total_kalshi_markets: kalshiMarkets.length,
-      matched_teams: sorted.length,
+      comparisons: matched,
+      total_polymarket_matches: polyMatches.length,
+      total_kalshi_advance_markets: kalshiMarkets.length,
+      matched_count: matched.length,
       timestamp: new Date().toISOString(),
     });
   } catch (e) {

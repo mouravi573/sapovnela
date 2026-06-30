@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 
 interface ArbResult {
+  matchup: string
   team: string
   polymarket_price: number | null
   polymarket_volume: number
@@ -63,9 +64,9 @@ export default function ArbitrageDashboard() {
       const data = await res.json()
       setComparisons(data.comparisons ?? [])
       setStats({
-        poly: data.total_polymarket_teams ?? 0,
-        kalshi: data.total_kalshi_markets ?? 0,
-        matched: data.matched_teams ?? 0,
+        poly: data.total_polymarket_matches ?? 0,
+        kalshi: data.total_kalshi_advance_markets ?? 0,
+        matched: data.matched_count ?? 0,
       })
       setStatus('Live')
     } catch {
@@ -158,11 +159,11 @@ export default function ArbitrageDashboard() {
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 1, background: '#1a2230', border: '1px solid #1a2230', marginBottom: 32 }}>
           <div style={{ background: '#0e1318', padding: '16px 20px' }}>
-            <div className="ar-mono" style={{ fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#4a5568', marginBottom: 6 }}>Polymarket teams</div>
+            <div className="ar-mono" style={{ fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#4a5568', marginBottom: 6 }}>Polymarket matches</div>
             <div className="ar-mono" style={{ fontSize: 22, fontWeight: 600, color: '#00c9a7' }}>{stats.poly}</div>
           </div>
           <div style={{ background: '#0e1318', padding: '16px 20px' }}>
-            <div className="ar-mono" style={{ fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#4a5568', marginBottom: 6 }}>Kalshi markets</div>
+            <div className="ar-mono" style={{ fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#4a5568', marginBottom: 6 }}>Kalshi advance markets</div>
             <div className="ar-mono" style={{ fontSize: 22, fontWeight: 600, color: '#8892a4' }}>{stats.kalshi}</div>
           </div>
           <div style={{ background: '#0e1318', padding: '16px 20px' }}>
@@ -186,10 +187,11 @@ export default function ArbitrageDashboard() {
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {significantGaps.map(c => (
-                <div key={c.team} style={{ background: '#0e1318', border: '1px solid rgba(245,166,35,0.3)', padding: 16 }}>
+                <div key={c.matchup} style={{ background: '#0e1318', border: '1px solid rgba(245,166,35,0.3)', padding: 16 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16 }}>
                     <div>
-                      <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 8 }}>{c.team}</div>
+                      <div style={{ fontSize: 13, color: '#8892a4', marginBottom: 4 }}>{c.matchup}</div>
+                      <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 8 }}>{c.team} advances</div>
                       <div style={{ display: 'flex', gap: 16 }}>
                         <button
                           onClick={() => prefillTrade(c.team, 'Polymarket', c.polymarket_price ?? 0)}
@@ -205,6 +207,9 @@ export default function ArbitrageDashboard() {
                         >
                           Kalshi: {((c.kalshi_price ?? 0) * 100).toFixed(2)}¢
                         </button>
+                      </div>
+                      <div className="ar-mono" style={{ fontSize: 10, color: '#4a5568', marginTop: 8 }}>
+                        Kalshi vol: ${(c.kalshi_volume / 1000).toFixed(0)}K · Poly vol: ${(c.polymarket_volume / 1000).toFixed(0)}K/24h
                       </div>
                     </div>
                     <div style={{ textAlign: 'right' }}>
@@ -229,19 +234,20 @@ export default function ArbitrageDashboard() {
             </div>
           ) : (
             <div style={{ background: '#0e1318', border: '1px solid #1a2230', overflow: 'hidden' }}>
-              <div className="ar-mono" style={{ display: 'grid', gridTemplateColumns: '1fr 100px 100px 80px', gap: 12, padding: '10px 16px', fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#4a5568', borderBottom: '1px solid #1a2230' }}>
-                <div>Team</div><div>Polymarket</div><div>Kalshi</div><div>Gap</div>
+              <div className="ar-mono" style={{ display: 'grid', gridTemplateColumns: '1fr 100px 100px 80px 90px', gap: 12, padding: '10px 16px', fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#4a5568', borderBottom: '1px solid #1a2230' }}>
+                <div>Matchup — team to advance</div><div>Polymarket</div><div>Kalshi</div><div>Gap</div><div>Kalshi vol</div>
               </div>
               {otherGaps.map(c => (
                 <div
-                  key={c.team}
+                  key={c.matchup}
                   className="ar-row"
-                  style={{ display: 'grid', gridTemplateColumns: '1fr 100px 100px 80px', gap: 12, padding: '12px 16px', borderBottom: '1px solid #1a2230', alignItems: 'center' }}
+                  style={{ display: 'grid', gridTemplateColumns: '1fr 100px 100px 80px 90px', gap: 12, padding: '12px 16px', borderBottom: '1px solid #1a2230', alignItems: 'center' }}
                 >
-                  <div style={{ fontSize: 12 }}>{c.team}</div>
+                  <div style={{ fontSize: 12 }}>{c.matchup} <span style={{ color: '#4a5568' }}>— {c.team}</span></div>
                   <div className="ar-mono" style={{ fontSize: 11, color: '#00c9a7' }}>{((c.polymarket_price ?? 0) * 100).toFixed(2)}¢</div>
                   <div className="ar-mono" style={{ fontSize: 11, color: '#8892a4' }}>{((c.kalshi_price ?? 0) * 100).toFixed(2)}¢</div>
                   <div className="ar-mono" style={{ fontSize: 11, color: '#4a5568' }}>{((c.gap_pct ?? 0) * 100).toFixed(0)}%</div>
+                  <div className="ar-mono" style={{ fontSize: 11, color: '#4a5568' }}>${(c.kalshi_volume / 1000).toFixed(0)}K</div>
                 </div>
               ))}
             </div>
