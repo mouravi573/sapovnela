@@ -140,9 +140,6 @@ export default function ArbitrageDashboard() {
   const totalPnl = trades.reduce((s, t) => s + (t.pnl ?? 0), 0)
   const winRate = resolved.length > 0 ? (wins.length / resolved.length * 100).toFixed(0) + '%' : '—'
 
-  const significantGaps = comparisons.filter(c => c.is_arbitrage && (c.edge ?? 0) > 0.03)
-  const otherGaps = comparisons.filter(c => !(c.is_arbitrage && (c.edge ?? 0) > 0.03))
-
   return (
     <div style={{ minHeight: '100vh', background: '#080b0e', color: '#dde3ed' }}>
       <style>{`
@@ -196,53 +193,15 @@ export default function ArbitrageDashboard() {
           </div>
         </div>
 
-        {significantGaps.length > 0 && (
-          <section style={{ marginBottom: 32 }}>
-            <div className="ar-mono" style={{ fontSize: 10, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#f5a623', marginBottom: 16 }}>
-              Genuine arbitrage — buy YES on Polymarket + NO on Kalshi, live prices
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {significantGaps.map(c => (
-                <div key={c.matchup} style={{ background: '#0e1318', border: '1px solid rgba(245,166,35,0.3)', padding: 16 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16 }}>
-                    <div>
-                      <div style={{ fontSize: 13, color: '#8892a4', marginBottom: 4 }}>{c.matchup} {c.stale && <span style={{ color: '#f5a623' }}>(stale book — last trade)</span>}</div>
-                      <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 8 }}>{c.team} advances</div>
-                      <div style={{ display: 'flex', gap: 16 }}>
-                        <button
-                          onClick={() => prefillTrade(c.team, 'Polymarket', c.polymarket_ask ?? 0, 'YES')}
-                          className="ar-mono"
-                          style={{ fontSize: 11, color: '#00c9a7', background: 'transparent', border: '1px solid #00c9a7', padding: '4px 10px', cursor: 'pointer' }}
-                        >
-                          Buy YES Polymarket: {((c.polymarket_ask ?? 0) * 100).toFixed(2)}¢
-                        </button>
-                        <button
-                          onClick={() => prefillTrade(c.team, 'Kalshi', c.kalshi_no_ask ?? 0, 'NO')}
-                          className="ar-mono"
-                          style={{ fontSize: 11, color: '#8892a4', background: 'transparent', border: '1px solid #243040', padding: '4px 10px', cursor: 'pointer' }}
-                        >
-                          Buy NO Kalshi: {((c.kalshi_no_ask ?? 0) * 100).toFixed(2)}¢
-                        </button>
-                      </div>
-                      <div className="ar-mono" style={{ fontSize: 10, color: '#ffffff', marginTop: 8 }}>
-                        Kalshi vol: ${(c.kalshi_volume / 1000).toFixed(0)}K · Poly vol: ${(c.polymarket_volume / 1000).toFixed(0)}K/24h · combined {((c.combined_price ?? 0) * 100).toFixed(1)}¢
-                      </div>
-                    </div>
-                    <div style={{ textAlign: 'right' }}>
-                      <div className="ar-mono" style={{ fontSize: 16, fontWeight: 600, color: '#f5a623' }}>
-                        +{((c.edge ?? 0) * 100).toFixed(1)}% edge
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </section>
-        )}
-
         <section style={{ marginBottom: 32 }}>
-          <div className="ar-mono" style={{ fontSize: 10, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#ffffff', marginBottom: 16 }}>
-            All matched World Cup winner markets
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+            <div className="ar-mono" style={{ fontSize: 10, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#ffffff' }}>
+              All matched World Cup winner markets
+            </div>
+            <div className="ar-mono" style={{ fontSize: 9, color: '#8892a4', display: 'flex', gap: 14 }}>
+              <span><span style={{ color: '#3dd68c' }}>⚡</span> edge ≥ 4% — check now</span>
+              <span><span style={{ color: '#f5a623' }}>★</span> edge ≥ 1.5% — watch</span>
+            </div>
           </div>
           {comparisons.length === 0 ? (
             <div style={{ background: '#0e1318', border: '1px dashed #243040', padding: 48, textAlign: 'center' }}>
@@ -253,26 +212,43 @@ export default function ArbitrageDashboard() {
               <div className="ar-mono" style={{ display: 'grid', gridTemplateColumns: '1fr 100px 100px 80px 90px', gap: 12, padding: '10px 16px', fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#ffffff', borderBottom: '1px solid #1a2230' }}>
                 <div>Matchup — team to advance</div><div>Poly ask (YES)</div><div>Kalshi ask (NO)</div><div>Edge</div><div>Kalshi vol</div>
               </div>
-              {otherGaps.map(c => (
-                <div
-                  key={c.matchup}
-                  className="ar-row"
-                  style={{ display: 'grid', gridTemplateColumns: '1fr 100px 100px 80px 90px', gap: 12, padding: '12px 16px', borderBottom: '1px solid #1a2230', alignItems: 'center' }}
-                >
-                  <div style={{ fontSize: 12 }}>
-                    {c.matchup} <span style={{ color: '#ffffff' }}>— {c.team}</span>
-                    {!c.equivalent_market && (
-                      <span className="ar-mono" style={{ fontSize: 9, color: '#ff4d4d', marginLeft: 8 }} title="Polymarket side is regulation-time only — not equivalent to Kalshi's whole-tie advance market">
-                        ⚠ not equivalent
-                      </span>
-                    )}
+              {comparisons.map(c => {
+                const e = c.edge ?? -1
+                // Tiered highlight: real opportunities need real room above
+                // fees/slippage, not just a positive number (see edge thresholds
+                // discussed — Kalshi's ~3% fee alone eats a thin edge).
+                const tier = e >= 0.04 ? 'hot' : e >= 0.015 ? 'watch' : 'normal'
+                const rowStyle =
+                  tier === 'hot'
+                    ? { background: 'rgba(61,214,140,0.08)', borderLeft: '3px solid #3dd68c' }
+                    : tier === 'watch'
+                    ? { background: 'rgba(245,166,35,0.06)', borderLeft: '3px solid #f5a623' }
+                    : { borderLeft: '3px solid transparent' }
+                return (
+                  <div
+                    key={c.matchup}
+                    className="ar-row"
+                    style={{ display: 'grid', gridTemplateColumns: '1fr 100px 100px 80px 90px', gap: 12, padding: '12px 16px 12px 13px', borderBottom: '1px solid #1a2230', alignItems: 'center', ...rowStyle }}
+                  >
+                    <div style={{ fontSize: 12 }}>
+                      {tier === 'hot' && <span title="Edge above 4% — worth checking now" style={{ marginRight: 6 }}>⚡</span>}
+                      {tier === 'watch' && <span title="Edge above 1.5% — worth watching" style={{ marginRight: 6 }}>★</span>}
+                      {c.matchup} <span style={{ color: '#ffffff' }}>— {c.team}</span>
+                      {!c.equivalent_market && (
+                        <span className="ar-mono" style={{ fontSize: 9, color: '#ff4d4d', marginLeft: 8 }} title="Polymarket side is regulation-time only — not equivalent to Kalshi's whole-tie advance market">
+                          ⚠ not equivalent
+                        </span>
+                      )}
+                    </div>
+                    <div className="ar-mono" style={{ fontSize: 11, color: '#00c9a7' }}>{((c.polymarket_ask ?? 0) * 100).toFixed(2)}¢</div>
+                    <div className="ar-mono" style={{ fontSize: 11, color: '#8892a4' }}>{((c.kalshi_no_ask ?? 0) * 100).toFixed(2)}¢</div>
+                    <div className="ar-mono" style={{ fontSize: 11, fontWeight: tier === 'hot' ? 700 : 400, color: tier === 'hot' ? '#3dd68c' : tier === 'watch' ? '#f5a623' : (e > 0 ? '#3dd68c' : '#ff4d4d') }}>
+                      {(e * 100).toFixed(1)}%
+                    </div>
+                    <div className="ar-mono" style={{ fontSize: 11, color: '#ffffff' }}>${(c.kalshi_volume / 1000).toFixed(0)}K</div>
                   </div>
-                  <div className="ar-mono" style={{ fontSize: 11, color: '#00c9a7' }}>{((c.polymarket_ask ?? 0) * 100).toFixed(2)}¢</div>
-                  <div className="ar-mono" style={{ fontSize: 11, color: '#8892a4' }}>{((c.kalshi_no_ask ?? 0) * 100).toFixed(2)}¢</div>
-                  <div className="ar-mono" style={{ fontSize: 11, color: (c.edge ?? 0) > 0 ? '#3dd68c' : '#ff4d4d' }}>{((c.edge ?? 0) * 100).toFixed(1)}%</div>
-                  <div className="ar-mono" style={{ fontSize: 11, color: '#ffffff' }}>${(c.kalshi_volume / 1000).toFixed(0)}K</div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           )}
         </section>
