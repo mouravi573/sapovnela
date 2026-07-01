@@ -15,6 +15,7 @@ interface ArbResult {
   combined_price: number | null
   edge: number | null
   is_arbitrage: boolean
+  equivalent_market: boolean
   stale: boolean
 }
 
@@ -250,7 +251,14 @@ export default function ArbitrageDashboard() {
                   className="ar-row"
                   style={{ display: 'grid', gridTemplateColumns: '1fr 100px 100px 80px 90px', gap: 12, padding: '12px 16px', borderBottom: '1px solid #1a2230', alignItems: 'center' }}
                 >
-                  <div style={{ fontSize: 12 }}>{c.matchup} <span style={{ color: '#ffffff' }}>— {c.team}</span></div>
+                  <div style={{ fontSize: 12 }}>
+                    {c.matchup} <span style={{ color: '#ffffff' }}>— {c.team}</span>
+                    {!c.equivalent_market && (
+                      <span className="ar-mono" style={{ fontSize: 9, color: '#ff4d4d', marginLeft: 8 }} title="Polymarket side is regulation-time only — not equivalent to Kalshi's whole-tie advance market">
+                        ⚠ not equivalent
+                      </span>
+                    )}
+                  </div>
                   <div className="ar-mono" style={{ fontSize: 11, color: '#00c9a7' }}>{((c.polymarket_ask ?? 0) * 100).toFixed(2)}¢</div>
                   <div className="ar-mono" style={{ fontSize: 11, color: '#8892a4' }}>{((c.kalshi_no_ask ?? 0) * 100).toFixed(2)}¢</div>
                   <div className="ar-mono" style={{ fontSize: 11, color: (c.edge ?? 0) > 0 ? '#3dd68c' : '#ff4d4d' }}>{((c.edge ?? 0) * 100).toFixed(1)}%</div>
