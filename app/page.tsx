@@ -100,9 +100,13 @@ export default async function Home() {
           <div className="root-mono" style={{ fontSize: 13, fontWeight: 600, color: '#00c9a7', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
             Sapovnela <span style={{ color: '#4a5568', fontWeight: 400 }}>/ Signal Engine</span>
           </div>
-          <div className="root-mono" style={{ fontSize: 11, color: '#8892a4', display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#3dd68c', boxShadow: '0 0 8px #3dd68c', display: 'inline-block' }} />
-            Operational
+          <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
+            <Link href="/calculator" className="root-mono" style={{ fontSize: 11, color: '#8892a4', textDecoration: 'none', letterSpacing: '0.06em' }}>Calculator</Link>
+            <Link href="/arbitrage" className="root-mono" style={{ fontSize: 11, color: '#8892a4', textDecoration: 'none', letterSpacing: '0.06em' }}>Arbitrage</Link>
+            <div className="root-mono" style={{ fontSize: 11, color: '#8892a4', display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#3dd68c', boxShadow: '0 0 8px #3dd68c', display: 'inline-block' }} />
+              Operational
+            </div>
           </div>
         </nav>
 

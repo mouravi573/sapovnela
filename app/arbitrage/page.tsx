@@ -149,6 +149,7 @@ export default function ArbitrageDashboard() {
             Sapovnela <span style={{ color: '#4a5568', fontWeight: 400 }}>/ Arbitrage Signals</span>
           </Link>
           <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
+            <Link href="/calculator" className="ar-mono" style={{ fontSize: 11, color: '#00c9a7', textDecoration: 'none', letterSpacing: '0.06em', border: '1px solid rgba(0,201,167,0.3)', padding: '4px 10px' }}>⊞ Calculator</Link>
             <div className="ar-mono" style={{ fontSize: 11, color: '#8892a4', display: 'flex', alignItems: 'center', gap: 6 }}>
               <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#3dd68c', boxShadow: '0 0 8px #3dd68c', display: 'inline-block' }} />
               {status}
