@@ -146,7 +146,7 @@ export default function ArbitrageDashboard() {
       <div style={{ maxWidth: 1040, margin: '0 auto', padding: '0 24px 80px' }}>
         <nav style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '22px 0 20px', borderBottom: '1px solid #1a2230', marginBottom: 40 }}>
           <Link href="/" className="ar-mono" style={{ fontSize: 13, fontWeight: 600, color: '#00c9a7', letterSpacing: '0.08em', textTransform: 'uppercase', textDecoration: 'none' }}>
-            Sapovnela <span style={{ color: '#4a5568', fontWeight: 400 }}>/ Arbitrage Signals</span>
+            Sapovnela <span style={{ color: '#ffffff', fontWeight: 400 }}>/ Arbitrage Signals</span>
           </Link>
           <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
             <Link href="/calculator" className="ar-mono" style={{ fontSize: 11, color: '#00c9a7', textDecoration: 'none', letterSpacing: '0.06em', border: '1px solid rgba(0,201,167,0.3)', padding: '4px 10px' }}>⊞ Calculator</Link>
@@ -154,28 +154,28 @@ export default function ArbitrageDashboard() {
               <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#3dd68c', boxShadow: '0 0 8px #3dd68c', display: 'inline-block' }} />
               {status}
             </div>
-            <div className="ar-mono" style={{ fontSize: 11, color: '#4a5568' }}>{clock}</div>
+            <div className="ar-mono" style={{ fontSize: 11, color: '#ffffff' }}>{clock}</div>
           </div>
         </nav>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 1, background: '#1a2230', border: '1px solid #1a2230', marginBottom: 32 }}>
           <div style={{ background: '#0e1318', padding: '16px 20px' }}>
-            <div className="ar-mono" style={{ fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#4a5568', marginBottom: 6 }}>Polymarket matches</div>
+            <div className="ar-mono" style={{ fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#ffffff', marginBottom: 6 }}>Polymarket matches</div>
             <div className="ar-mono" style={{ fontSize: 22, fontWeight: 600, color: '#00c9a7' }}>{stats.poly}</div>
           </div>
           <div style={{ background: '#0e1318', padding: '16px 20px' }}>
-            <div className="ar-mono" style={{ fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#4a5568', marginBottom: 6 }}>Kalshi advance markets</div>
+            <div className="ar-mono" style={{ fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#ffffff', marginBottom: 6 }}>Kalshi advance markets</div>
             <div className="ar-mono" style={{ fontSize: 22, fontWeight: 600, color: '#8892a4' }}>{stats.kalshi}</div>
           </div>
           <div style={{ background: '#0e1318', padding: '16px 20px' }}>
-            <div className="ar-mono" style={{ fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#4a5568', marginBottom: 6 }}>Paper P&L</div>
+            <div className="ar-mono" style={{ fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#ffffff', marginBottom: 6 }}>Paper P&L</div>
             <div className="ar-mono" style={{ fontSize: 22, fontWeight: 600, color: totalPnl >= 0 ? '#3dd68c' : '#ff4d4d' }}>
               {totalPnl >= 0 ? '+' : ''}${totalPnl.toFixed(2)}
             </div>
           </div>
           <div style={{ background: '#0e1318', padding: '16px 20px' }}>
-            <div className="ar-mono" style={{ fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#4a5568', marginBottom: 6 }}>Win rate</div>
-            <div className="ar-mono" style={{ fontSize: 22, fontWeight: 600, color: resolved.length > 0 ? (wins.length / resolved.length > 0.6 ? '#3dd68c' : '#f5a623') : '#4a5568' }}>
+            <div className="ar-mono" style={{ fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#ffffff', marginBottom: 6 }}>Win rate</div>
+            <div className="ar-mono" style={{ fontSize: 22, fontWeight: 600, color: resolved.length > 0 ? (wins.length / resolved.length > 0.6 ? '#3dd68c' : '#f5a623') : '#ffffff' }}>
               {winRate}
             </div>
           </div>
@@ -209,7 +209,7 @@ export default function ArbitrageDashboard() {
                           Kalshi: {((c.kalshi_price ?? 0) * 100).toFixed(2)}¢
                         </button>
                       </div>
-                      <div className="ar-mono" style={{ fontSize: 10, color: '#4a5568', marginTop: 8 }}>
+                      <div className="ar-mono" style={{ fontSize: 10, color: '#ffffff', marginTop: 8 }}>
                         Kalshi vol: ${(c.kalshi_volume / 1000).toFixed(0)}K · Poly vol: ${(c.polymarket_volume / 1000).toFixed(0)}K/24h
                       </div>
                     </div>
@@ -226,16 +226,16 @@ export default function ArbitrageDashboard() {
         )}
 
         <section style={{ marginBottom: 32 }}>
-          <div className="ar-mono" style={{ fontSize: 10, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#4a5568', marginBottom: 16 }}>
+          <div className="ar-mono" style={{ fontSize: 10, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#ffffff', marginBottom: 16 }}>
             All matched World Cup winner markets
           </div>
           {comparisons.length === 0 ? (
             <div style={{ background: '#0e1318', border: '1px dashed #243040', padding: 48, textAlign: 'center' }}>
-              <div className="ar-mono" style={{ fontSize: 12, color: '#4a5568' }}>Loading comparisons…</div>
+              <div className="ar-mono" style={{ fontSize: 12, color: '#ffffff' }}>Loading comparisons…</div>
             </div>
           ) : (
             <div style={{ background: '#0e1318', border: '1px solid #1a2230', overflow: 'hidden' }}>
-              <div className="ar-mono" style={{ display: 'grid', gridTemplateColumns: '1fr 100px 100px 80px 90px', gap: 12, padding: '10px 16px', fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#4a5568', borderBottom: '1px solid #1a2230' }}>
+              <div className="ar-mono" style={{ display: 'grid', gridTemplateColumns: '1fr 100px 100px 80px 90px', gap: 12, padding: '10px 16px', fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#ffffff', borderBottom: '1px solid #1a2230' }}>
                 <div>Matchup — team to advance</div><div>Polymarket</div><div>Kalshi</div><div>Gap</div><div>Kalshi vol</div>
               </div>
               {otherGaps.map(c => (
@@ -244,11 +244,11 @@ export default function ArbitrageDashboard() {
                   className="ar-row"
                   style={{ display: 'grid', gridTemplateColumns: '1fr 100px 100px 80px 90px', gap: 12, padding: '12px 16px', borderBottom: '1px solid #1a2230', alignItems: 'center' }}
                 >
-                  <div style={{ fontSize: 12 }}>{c.matchup} <span style={{ color: '#4a5568' }}>— {c.team}</span></div>
+                  <div style={{ fontSize: 12 }}>{c.matchup} <span style={{ color: '#ffffff' }}>— {c.team}</span></div>
                   <div className="ar-mono" style={{ fontSize: 11, color: '#00c9a7' }}>{((c.polymarket_price ?? 0) * 100).toFixed(2)}¢</div>
                   <div className="ar-mono" style={{ fontSize: 11, color: '#8892a4' }}>{((c.kalshi_price ?? 0) * 100).toFixed(2)}¢</div>
-                  <div className="ar-mono" style={{ fontSize: 11, color: '#4a5568' }}>{((c.gap_pct ?? 0) * 100).toFixed(0)}%</div>
-                  <div className="ar-mono" style={{ fontSize: 11, color: '#4a5568' }}>${(c.kalshi_volume / 1000).toFixed(0)}K</div>
+                  <div className="ar-mono" style={{ fontSize: 11, color: '#ffffff' }}>{((c.gap_pct ?? 0) * 100).toFixed(0)}%</div>
+                  <div className="ar-mono" style={{ fontSize: 11, color: '#ffffff' }}>${(c.kalshi_volume / 1000).toFixed(0)}K</div>
                 </div>
               ))}
             </div>
@@ -257,7 +257,7 @@ export default function ArbitrageDashboard() {
 
         <div style={{ marginBottom: 32 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-            <div className="ar-mono" style={{ fontSize: 10, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#4a5568' }}>Paper trade log</div>
+            <div className="ar-mono" style={{ fontSize: 10, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#ffffff' }}>Paper trade log</div>
             <button
               onClick={() => { setForm({ question: '', side: 'YES', entry: '', size: '25', notes: '' }); setModalOpen(true) }}
               className="ar-mono"
@@ -271,14 +271,14 @@ export default function ArbitrageDashboard() {
               <thead>
                 <tr style={{ borderBottom: '1px solid #243040' }}>
                   {['Date', 'Question', 'Side', 'Entry ¢', 'Notes', 'Size $', 'Result', 'P&L', ''].map(h => (
-                    <th key={h} className="ar-mono" style={{ fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#4a5568', padding: '12px 16px', textAlign: 'left', fontWeight: 500 }}>{h}</th>
+                    <th key={h} className="ar-mono" style={{ fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#ffffff', padding: '12px 16px', textAlign: 'left', fontWeight: 500 }}>{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {trades.slice().reverse().map(t => (
                   <tr key={t.id} style={{ borderBottom: '1px solid #1a2230' }}>
-                    <td className="ar-mono" style={{ padding: '13px 16px', color: '#4a5568', whiteSpace: 'nowrap' }}>{t.date}</td>
+                    <td className="ar-mono" style={{ padding: '13px 16px', color: '#ffffff', whiteSpace: 'nowrap' }}>{t.date}</td>
                     <td style={{ padding: '13px 16px', maxWidth: 240 }}>{t.question}</td>
                     <td className="ar-mono" style={{ padding: '13px 16px', fontWeight: 600, color: t.side === 'YES' ? '#3dd68c' : '#ff4d4d' }}>{t.side}</td>
                     <td className="ar-mono" style={{ padding: '13px 16px', color: '#00c9a7' }}>{t.entry}</td>
@@ -287,19 +287,19 @@ export default function ArbitrageDashboard() {
                     <td style={{ padding: '13px 16px' }}>
                       {t.resolution === 'WIN' && <span className="ar-mono" style={{ fontSize: 9, padding: '2px 7px', background: 'rgba(61,214,140,0.10)', color: '#3dd68c' }}>WIN</span>}
                       {t.resolution === 'LOSS' && <span className="ar-mono" style={{ fontSize: 9, padding: '2px 7px', background: 'rgba(255,77,77,0.10)', color: '#ff4d4d' }}>LOSS</span>}
-                      {t.resolution === 'pending' && <span className="ar-mono" style={{ fontSize: 9, padding: '2px 7px', border: '1px solid #243040', color: '#4a5568' }}>PENDING</span>}
+                      {t.resolution === 'pending' && <span className="ar-mono" style={{ fontSize: 9, padding: '2px 7px', border: '1px solid #243040', color: '#ffffff' }}>PENDING</span>}
                     </td>
-                    <td className="ar-mono" style={{ padding: '13px 16px', fontWeight: 600, color: t.pnl === null ? '#4a5568' : t.pnl >= 0 ? '#3dd68c' : '#ff4d4d' }}>
+                    <td className="ar-mono" style={{ padding: '13px 16px', fontWeight: 600, color: t.pnl === null ? '#ffffff' : t.pnl >= 0 ? '#3dd68c' : '#ff4d4d' }}>
                       {t.pnl !== null ? `${t.pnl >= 0 ? '+' : ''}$${t.pnl.toFixed(2)}` : '—'}
                     </td>
                     <td style={{ padding: '13px 16px', whiteSpace: 'nowrap' }}>
                       {t.resolution === 'pending' ? (
                         <>
-                          <button onClick={() => resolveTrade(t.id, 'WIN')} className="ar-mono" style={{ fontSize: 9, padding: '3px 8px', background: 'transparent', border: '1px solid #243040', color: '#4a5568', cursor: 'pointer', marginRight: 4 }}>WIN</button>
-                          <button onClick={() => resolveTrade(t.id, 'LOSS')} className="ar-mono" style={{ fontSize: 9, padding: '3px 8px', background: 'transparent', border: '1px solid #243040', color: '#4a5568', cursor: 'pointer' }}>LOSS</button>
+                          <button onClick={() => resolveTrade(t.id, 'WIN')} className="ar-mono" style={{ fontSize: 9, padding: '3px 8px', background: 'transparent', border: '1px solid #243040', color: '#ffffff', cursor: 'pointer', marginRight: 4 }}>WIN</button>
+                          <button onClick={() => resolveTrade(t.id, 'LOSS')} className="ar-mono" style={{ fontSize: 9, padding: '3px 8px', background: 'transparent', border: '1px solid #243040', color: '#ffffff', cursor: 'pointer' }}>LOSS</button>
                         </>
                       ) : (
-                        <button onClick={() => deleteTrade(t.id)} className="ar-mono" style={{ fontSize: 9, padding: '3px 8px', background: 'transparent', border: '1px solid #243040', color: '#4a5568', cursor: 'pointer' }}>✕</button>
+                        <button onClick={() => deleteTrade(t.id)} className="ar-mono" style={{ fontSize: 9, padding: '3px 8px', background: 'transparent', border: '1px solid #243040', color: '#ffffff', cursor: 'pointer' }}>✕</button>
                       )}
                     </td>
                   </tr>
@@ -308,7 +308,7 @@ export default function ArbitrageDashboard() {
             </table>
             {trades.length === 0 && (
               <div style={{ padding: 40, textAlign: 'center' }} className="ar-mono">
-                <span style={{ fontSize: 11, color: '#4a5568' }}>No trades logged yet.</span>
+                <span style={{ fontSize: 11, color: '#ffffff' }}>No trades logged yet.</span>
               </div>
             )}
           </div>
@@ -323,7 +323,7 @@ export default function ArbitrageDashboard() {
           <div style={{ background: '#0e1318', border: '1px solid #243040', padding: 32, width: 480, maxWidth: '95vw' }}>
             <div className="ar-mono" style={{ fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#00c9a7', marginBottom: 24 }}>Log paper trade</div>
             <div style={{ marginBottom: 16 }}>
-              <label className="ar-mono" style={{ fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#4a5568', marginBottom: 6, display: 'block' }}>Question</label>
+              <label className="ar-mono" style={{ fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#ffffff', marginBottom: 6, display: 'block' }}>Question</label>
               <input
                 value={form.question}
                 onChange={e => setForm(f => ({ ...f, question: e.target.value }))}
@@ -332,7 +332,7 @@ export default function ArbitrageDashboard() {
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
               <div>
-                <label className="ar-mono" style={{ fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#4a5568', marginBottom: 6, display: 'block' }}>Side</label>
+                <label className="ar-mono" style={{ fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#ffffff', marginBottom: 6, display: 'block' }}>Side</label>
                 <select
                   value={form.side}
                   onChange={e => setForm(f => ({ ...f, side: e.target.value as 'YES' | 'NO' }))}
@@ -343,7 +343,7 @@ export default function ArbitrageDashboard() {
                 </select>
               </div>
               <div>
-                <label className="ar-mono" style={{ fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#4a5568', marginBottom: 6, display: 'block' }}>Entry price (¢)</label>
+                <label className="ar-mono" style={{ fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#ffffff', marginBottom: 6, display: 'block' }}>Entry price (¢)</label>
                 <input
                   type="number" step="0.1" min="0.1" max="99"
                   value={form.entry}
@@ -354,7 +354,7 @@ export default function ArbitrageDashboard() {
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
               <div>
-                <label className="ar-mono" style={{ fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#4a5568', marginBottom: 6, display: 'block' }}>Size (USDC $)</label>
+                <label className="ar-mono" style={{ fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#ffffff', marginBottom: 6, display: 'block' }}>Size (USDC $)</label>
                 <input
                   type="number" min="1"
                   value={form.size}
@@ -363,7 +363,7 @@ export default function ArbitrageDashboard() {
                 />
               </div>
               <div>
-                <label className="ar-mono" style={{ fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#4a5568', marginBottom: 6, display: 'block' }}>Notes</label>
+                <label className="ar-mono" style={{ fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#ffffff', marginBottom: 6, display: 'block' }}>Notes</label>
                 <input
                   value={form.notes}
                   onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
@@ -373,7 +373,7 @@ export default function ArbitrageDashboard() {
             </div>
             <div style={{ display: 'flex', gap: 10, marginTop: 24 }}>
               <button onClick={saveTrade} className="ar-mono" style={{ flex: 1, fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', padding: 10, background: '#00c9a7', color: '#080b0e', border: 'none', cursor: 'pointer', fontWeight: 600 }}>Log trade</button>
-              <button onClick={() => setModalOpen(false)} className="ar-mono" style={{ fontSize: 11, padding: '10px 20px', background: 'transparent', color: '#4a5568', border: '1px solid #243040', cursor: 'pointer' }}>Cancel</button>
+              <button onClick={() => setModalOpen(false)} className="ar-mono" style={{ fontSize: 11, padding: '10px 20px', background: 'transparent', color: '#ffffff', border: '1px solid #243040', cursor: 'pointer' }}>Cancel</button>
             </div>
           </div>
         </div>

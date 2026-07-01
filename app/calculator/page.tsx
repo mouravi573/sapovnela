@@ -57,7 +57,7 @@ export default function ArbCalculator() {
   const teal = '#00c9a7'
   const green = '#3dd68c'
   const red = '#ff4d4d'
-  const dim = '#4a5568'
+  const dim = '#ffffff'
   const dimmer = '#8892a4'
 
   return (
