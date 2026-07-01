@@ -188,6 +188,14 @@ export default function ArbitrageDashboard() {
           </div>
         </div>
 
+        <div style={{ background: '#0e1318', border: '1px solid #243040', padding: '12px 16px', marginBottom: 32 }}>
+          <div className="ar-mono" style={{ fontSize: 10, color: '#8892a4', lineHeight: 1.6 }}>
+            ⓘ Polymarket doesn't expose a "Team to Advance" price through this data feed — only regulation-time moneyline.
+            Since that's not equivalent to Kalshi's whole-tie advance market, genuine arbitrage can't be auto-confirmed here.
+            Rows below are reference only — verify the real advance price on both platforms before trading.
+          </div>
+        </div>
+
         {significantGaps.length > 0 && (
           <section style={{ marginBottom: 32 }}>
             <div className="ar-mono" style={{ fontSize: 10, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#f5a623', marginBottom: 16 }}>

@@ -16,9 +16,23 @@ import type { NextRequest } from "next/server";
  * - Kalshi: yes/no bid & ask are already directly exposed as
  *   no_ask_dollars — no derivation needed, just use it.
  *
- * The genuine-arbitrage check mirrors the calculator: buy YES on Polymarket
- * (at its live ask) + buy NO on Kalshi (at its live ask). If that combined
- * cost is under $1, it's a locked profit regardless of outcome.
+ * CONFIRMED LIMITATION (checked 2026-07-01 against a live event):
+ * Polymarket's per-match event data (this series_id) only contains
+ * regulation-time moneyline sub-markets — "Will X win on [date]?" for each
+ * team plus a draw market. There is NO "Team to Advance" (whole-tie,
+ * including ET/penalties) sub-market anywhere in this event's data. That
+ * market exists on Polymarket's own site but is sourced from somewhere
+ * this API doesn't expose (likely a separate bracket/round-level event).
+ *
+ * Kalshi's KXWCADVANCE markets resolve on the WHOLE tie. Comparing them
+ * against Polymarket's regulation-time-only price is NOT a real hedge —
+ * see isAdvanceMarket() below for why. Since we cannot currently source
+ * Polymarket's true equivalent price, every comparison in this route is
+ * intentionally flagged equivalent_market: false and is_arbitrage will
+ * never fire. This is correct, permanent behavior, not a bug: it's safer
+ * to show "not equivalent" honestly than to risk a false arb signal.
+ * These rows still surface as reference/manual-cross-check data — verify
+ * the true advance price on each platform directly before ever trading.
  *
  * Revalidate window is short (15s) since this now reflects live tradeable
  * prices, not a slow-moving snapshot.
@@ -161,36 +175,6 @@ function isMoneylineWinMarket(m: PolySubMarket): boolean {
 }
 
 export async function GET(req: NextRequest) {
-  // TEMP DEBUG: /api/arbitrage?debug=1 dumps every raw sub-market question
-  // + sportsMarketType for the first main match-odds event (explicitly
-  // skipping "Player Props" sub-events, which are a separate event per
-  // match full of per-player prop questions), so we can see exactly how
-  // Polymarket labels the "Team to Advance" market instead of guessing at
-  // wording. Remove this branch once the real pattern is confirmed.
-  const { searchParams } = new URL(req.url);
-  if (searchParams.get("debug") === "1") {
-    const events = await fetchPolymarketWorldCupEvents();
-    const mainEvent = events.find(
-      (e) => !e.closed && !e.title.toLowerCase().includes("player props")
-    );
-    if (!mainEvent) {
-      return Response.json({
-        error: "no main match-odds event found",
-        all_event_titles: events.map((e) => e.title),
-      });
-    }
-    return Response.json({
-      event_title: mainEvent.title,
-      event_slug: mainEvent.slug,
-      sub_markets: (mainEvent.markets ?? []).map((m) => ({
-        question: m.question,
-        sportsMarketType: m.sportsMarketType ?? null,
-        groupItemTitle: m.groupItemTitle,
-        closed: m.closed,
-        outcomePrices: m.outcomePrices,
-      })),
-    });
-  }
 
   try {
     const [events, kalshiMarkets] = await Promise.all([
