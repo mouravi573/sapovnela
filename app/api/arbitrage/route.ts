@@ -16,15 +16,24 @@ import type { NextRequest } from "next/server";
  * ET/penalties). Polymarket's "Will X win on [date]" markets are also
  * regulation-time-only (draw is a separate third outcome, same structure
  * as KXWCGAME). So KXWCGAME — not KXWCADVANCE — is the genuine
- * apples-to-apples match. Comparing against KXWCADVANCE (the earlier
- * approach) created false non-equivalence: it wasn't that Polymarket
- * lacked comparable data, it's that we were pointed at the wrong Kalshi
- * series the whole time. This route now uses KXWCGAME, so equivalent
- * comparisons and genuine is_arbitrage can actually fire.
+ * apples-to-apples match.
+ *
+ * FEES (2026-07-01): raw Gamma API responses show Polymarket sports
+ * markets now carry feeType "sports_fees_v2" with rate 0.03, taker-only —
+ * a real fee, not the 0% previously assumed. Kalshi's sports fee is also
+ * modeled here at ~3% of stake (matches the calculator's existing
+ * assumption; Kalshi's true formula is price-dependent and rounds
+ * per-contract, so treat this as an estimate, same caveat as the
+ * calculator). `edge` is the raw pre-fee number; `net_edge` subtracts an
+ * estimated 3% taker fee from each leg's stake — this is what should
+ * actually drive the "is this real" judgment, not the raw edge.
  *
  * Revalidate window is short (15s) since this reflects live tradeable
  * prices, not a slow-moving snapshot.
  */
+
+const POLYMARKET_TAKER_FEE_RATE = 0.03; // sports_fees_v2, confirmed from raw API response
+const KALSHI_TAKER_FEE_RATE = 0.03; // estimate — matches calculator's existing assumption
 
 const POLYMARKET_SERIES_ID = "11433"; // soccer-fifwc
 const REVALIDATE_SECONDS = 15;
@@ -73,6 +82,7 @@ interface MatchComparison {
   kalshi_volume: number;
   combined_price: number | null; // polymarket_ask + kalshi_no_ask
   edge: number | null; // 1 - combined_price (before fees)
+  net_edge: number | null; // edge minus estimated taker fees on both legs
   is_arbitrage: boolean;
   equivalent_market: boolean; // false = Polymarket side is reg-time-only, not a true hedge
   stale: boolean; // true if Polymarket live book fetch failed, falling back to last-trade
@@ -214,6 +224,8 @@ export async function GET(req: NextRequest) {
 
       const combinedPrice = polymarketAsk + kalshiNoAsk;
       const edge = 1 - combinedPrice;
+      const estimatedFees = polymarketAsk * POLYMARKET_TAKER_FEE_RATE + kalshiNoAsk * KALSHI_TAKER_FEE_RATE;
+      const netEdge = edge - estimatedFees;
 
       return {
         matchup: c.matchup,
@@ -226,6 +238,7 @@ export async function GET(req: NextRequest) {
         kalshi_volume: parseFloat(c.kalshiMatch.volume_fp) || 0,
         combined_price: combinedPrice,
         edge,
+        net_edge: netEdge,
         // Both sides are now confirmed regulation-time-only — a genuine
         // hedge, so edge > 0 can safely mean real arbitrage.
         is_arbitrage: edge > 0,
@@ -234,7 +247,7 @@ export async function GET(req: NextRequest) {
       };
     });
 
-    const sorted = results.sort((a, b) => (b.edge ?? -1) - (a.edge ?? -1));
+    const sorted = results.sort((a, b) => (b.net_edge ?? -1) - (a.net_edge ?? -1));
 
     return Response.json({
       comparisons: sorted,

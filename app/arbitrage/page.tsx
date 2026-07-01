@@ -14,6 +14,7 @@ interface ArbResult {
   kalshi_volume: number
   combined_price: number | null
   edge: number | null
+  net_edge: number | null
   is_arbitrage: boolean
   equivalent_market: boolean
   stale: boolean
@@ -199,8 +200,9 @@ export default function ArbitrageDashboard() {
               All matched World Cup winner markets
             </div>
             <div className="ar-mono" style={{ fontSize: 9, color: '#8892a4', display: 'flex', gap: 14 }}>
-              <span><span style={{ color: '#3dd68c' }}>⚡</span> edge ≥ 4% — check now</span>
-              <span><span style={{ color: '#f5a623' }}>★</span> edge ≥ 1.5% — watch</span>
+              <span><span style={{ color: '#3dd68c' }}>⚡</span> net edge ≥ 4% — check now</span>
+              <span><span style={{ color: '#f5a623' }}>★</span> net edge ≥ 1.5% — watch</span>
+              <span>click a row to log a paper trade</span>
             </div>
           </div>
           {comparisons.length === 0 ? (
@@ -209,15 +211,15 @@ export default function ArbitrageDashboard() {
             </div>
           ) : (
             <div style={{ background: '#0e1318', border: '1px solid #1a2230', overflow: 'hidden' }}>
-              <div className="ar-mono" style={{ display: 'grid', gridTemplateColumns: '1fr 100px 100px 80px 90px', gap: 12, padding: '10px 16px', fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#ffffff', borderBottom: '1px solid #1a2230' }}>
-                <div>Matchup — team to advance</div><div>Poly ask (YES)</div><div>Kalshi ask (NO)</div><div>Edge</div><div>Kalshi vol</div>
+              <div className="ar-mono" style={{ display: 'grid', gridTemplateColumns: '1fr 90px 90px 70px 70px 80px', gap: 10, padding: '10px 16px', fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#ffffff', borderBottom: '1px solid #1a2230' }}>
+                <div>Matchup — team to advance</div><div>Poly ask (YES)</div><div>Kalshi ask (NO)</div><div>Edge</div><div>Net edge</div><div>Kalshi vol</div>
               </div>
               {comparisons.map(c => {
-                const e = c.edge ?? -1
-                // Tiered highlight: real opportunities need real room above
-                // fees/slippage, not just a positive number (see edge thresholds
-                // discussed — Kalshi's ~3% fee alone eats a thin edge).
-                const tier = e >= 0.04 ? 'hot' : e >= 0.015 ? 'watch' : 'normal'
+                // Tier on NET edge, not raw — raw edge can look positive
+                // while fees eat the whole thing (see the -1% to -2% rows
+                // we've actually seen live: raw edge alone is misleading).
+                const ne = c.net_edge ?? -1
+                const tier = ne >= 0.04 ? 'hot' : ne >= 0.015 ? 'watch' : 'normal'
                 const rowStyle =
                   tier === 'hot'
                     ? { background: 'rgba(61,214,140,0.08)', borderLeft: '3px solid #3dd68c' }
@@ -228,11 +230,13 @@ export default function ArbitrageDashboard() {
                   <div
                     key={c.matchup}
                     className="ar-row"
-                    style={{ display: 'grid', gridTemplateColumns: '1fr 100px 100px 80px 90px', gap: 12, padding: '12px 16px 12px 13px', borderBottom: '1px solid #1a2230', alignItems: 'center', ...rowStyle }}
+                    onClick={() => prefillTrade(c.team, 'Polymarket', c.polymarket_ask ?? 0, 'YES')}
+                    title="Click to log this as a Polymarket YES paper trade (adjust in the modal if you meant the Kalshi NO leg instead)"
+                    style={{ display: 'grid', gridTemplateColumns: '1fr 90px 90px 70px 70px 80px', gap: 10, padding: '12px 16px 12px 13px', borderBottom: '1px solid #1a2230', alignItems: 'center', cursor: 'pointer', ...rowStyle }}
                   >
                     <div style={{ fontSize: 12 }}>
-                      {tier === 'hot' && <span title="Edge above 4% — worth checking now" style={{ marginRight: 6 }}>⚡</span>}
-                      {tier === 'watch' && <span title="Edge above 1.5% — worth watching" style={{ marginRight: 6 }}>★</span>}
+                      {tier === 'hot' && <span title="Net edge above 4% — worth checking now" style={{ marginRight: 6 }}>⚡</span>}
+                      {tier === 'watch' && <span title="Net edge above 1.5% — worth watching" style={{ marginRight: 6 }}>★</span>}
                       {c.matchup} <span style={{ color: '#ffffff' }}>— {c.team}</span>
                       {!c.equivalent_market && (
                         <span className="ar-mono" style={{ fontSize: 9, color: '#ff4d4d', marginLeft: 8 }} title="Polymarket side is regulation-time only — not equivalent to Kalshi's whole-tie advance market">
@@ -242,8 +246,11 @@ export default function ArbitrageDashboard() {
                     </div>
                     <div className="ar-mono" style={{ fontSize: 11, color: '#00c9a7' }}>{((c.polymarket_ask ?? 0) * 100).toFixed(2)}¢</div>
                     <div className="ar-mono" style={{ fontSize: 11, color: '#8892a4' }}>{((c.kalshi_no_ask ?? 0) * 100).toFixed(2)}¢</div>
-                    <div className="ar-mono" style={{ fontSize: 11, fontWeight: tier === 'hot' ? 700 : 400, color: tier === 'hot' ? '#3dd68c' : tier === 'watch' ? '#f5a623' : (e > 0 ? '#3dd68c' : '#ff4d4d') }}>
-                      {(e * 100).toFixed(1)}%
+                    <div className="ar-mono" style={{ fontSize: 11, color: (c.edge ?? 0) > 0 ? '#3dd68c' : '#ff4d4d' }}>
+                      {((c.edge ?? 0) * 100).toFixed(1)}%
+                    </div>
+                    <div className="ar-mono" style={{ fontSize: 11, fontWeight: tier === 'hot' ? 700 : 400, color: tier === 'hot' ? '#3dd68c' : tier === 'watch' ? '#f5a623' : (ne > 0 ? '#3dd68c' : '#ff4d4d') }}>
+                      {(ne * 100).toFixed(1)}%
                     </div>
                     <div className="ar-mono" style={{ fontSize: 11, color: '#ffffff' }}>${(c.kalshi_volume / 1000).toFixed(0)}K</div>
                   </div>
