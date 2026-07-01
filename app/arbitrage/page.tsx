@@ -6,12 +6,16 @@ import Link from 'next/link'
 interface ArbResult {
   matchup: string
   team: string
-  polymarket_price: number | null
+  polymarket_ask: number | null
+  polymarket_bid: number | null
   polymarket_volume: number
-  kalshi_price: number | null
+  kalshi_no_ask: number | null
+  kalshi_no_bid: number | null
   kalshi_volume: number
-  gap: number | null
-  gap_pct: number | null
+  combined_price: number | null
+  edge: number | null
+  is_arbitrage: boolean
+  stale: boolean
 }
 
 interface PaperTrade {
@@ -76,14 +80,16 @@ export default function ArbitrageDashboard() {
 
   useEffect(() => {
     loadArb()
-    const id = setInterval(loadArb, 5 * 60 * 1000)
+    const id = setInterval(loadArb, 20 * 1000)
     return () => clearInterval(id)
   }, [loadArb])
 
-  function prefillTrade(team: string, platform: 'Polymarket' | 'Kalshi', price: number) {
+  function prefillTrade(team: string, platform: 'Polymarket' | 'Kalshi', price: number, side: 'YES' | 'NO' = 'YES') {
     setForm({
-      question: `Will ${team} win the 2026 World Cup? (${platform})`,
-      side: 'YES',
+      question: platform === 'Polymarket'
+        ? `Will ${team} win the 2026 World Cup? (${platform})`
+        : `${team} advances (${platform})`,
+      side,
       entry: (price * 100).toFixed(2),
       size: '25',
       notes: '',
@@ -133,8 +139,8 @@ export default function ArbitrageDashboard() {
   const totalPnl = trades.reduce((s, t) => s + (t.pnl ?? 0), 0)
   const winRate = resolved.length > 0 ? (wins.length / resolved.length * 100).toFixed(0) + '%' : '—'
 
-  const significantGaps = comparisons.filter(c => (c.gap_pct ?? 0) > 0.3)
-  const otherGaps = comparisons.filter(c => (c.gap_pct ?? 0) <= 0.3)
+  const significantGaps = comparisons.filter(c => c.is_arbitrage && (c.edge ?? 0) > 0.03)
+  const otherGaps = comparisons.filter(c => !(c.is_arbitrage && (c.edge ?? 0) > 0.03))
 
   return (
     <div style={{ minHeight: '100vh', background: '#080b0e', color: '#dde3ed' }}>
@@ -184,38 +190,38 @@ export default function ArbitrageDashboard() {
         {significantGaps.length > 0 && (
           <section style={{ marginBottom: 32 }}>
             <div className="ar-mono" style={{ fontSize: 10, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#f5a623', marginBottom: 16 }}>
-              Significant price gaps — same team, two platforms
+              Genuine arbitrage — buy YES on Polymarket + NO on Kalshi, live prices
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {significantGaps.map(c => (
                 <div key={c.matchup} style={{ background: '#0e1318', border: '1px solid rgba(245,166,35,0.3)', padding: 16 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16 }}>
                     <div>
-                      <div style={{ fontSize: 13, color: '#8892a4', marginBottom: 4 }}>{c.matchup}</div>
+                      <div style={{ fontSize: 13, color: '#8892a4', marginBottom: 4 }}>{c.matchup} {c.stale && <span style={{ color: '#f5a623' }}>(stale book — last trade)</span>}</div>
                       <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 8 }}>{c.team} advances</div>
                       <div style={{ display: 'flex', gap: 16 }}>
                         <button
-                          onClick={() => prefillTrade(c.team, 'Polymarket', c.polymarket_price ?? 0)}
+                          onClick={() => prefillTrade(c.team, 'Polymarket', c.polymarket_ask ?? 0, 'YES')}
                           className="ar-mono"
                           style={{ fontSize: 11, color: '#00c9a7', background: 'transparent', border: '1px solid #00c9a7', padding: '4px 10px', cursor: 'pointer' }}
                         >
-                          Polymarket: {((c.polymarket_price ?? 0) * 100).toFixed(2)}¢
+                          Buy YES Polymarket: {((c.polymarket_ask ?? 0) * 100).toFixed(2)}¢
                         </button>
                         <button
-                          onClick={() => prefillTrade(c.team, 'Kalshi', c.kalshi_price ?? 0)}
+                          onClick={() => prefillTrade(c.team, 'Kalshi', c.kalshi_no_ask ?? 0, 'NO')}
                           className="ar-mono"
                           style={{ fontSize: 11, color: '#8892a4', background: 'transparent', border: '1px solid #243040', padding: '4px 10px', cursor: 'pointer' }}
                         >
-                          Kalshi: {((c.kalshi_price ?? 0) * 100).toFixed(2)}¢
+                          Buy NO Kalshi: {((c.kalshi_no_ask ?? 0) * 100).toFixed(2)}¢
                         </button>
                       </div>
                       <div className="ar-mono" style={{ fontSize: 10, color: '#ffffff', marginTop: 8 }}>
-                        Kalshi vol: ${(c.kalshi_volume / 1000).toFixed(0)}K · Poly vol: ${(c.polymarket_volume / 1000).toFixed(0)}K/24h
+                        Kalshi vol: ${(c.kalshi_volume / 1000).toFixed(0)}K · Poly vol: ${(c.polymarket_volume / 1000).toFixed(0)}K/24h · combined {((c.combined_price ?? 0) * 100).toFixed(1)}¢
                       </div>
                     </div>
                     <div style={{ textAlign: 'right' }}>
                       <div className="ar-mono" style={{ fontSize: 16, fontWeight: 600, color: '#f5a623' }}>
-                        {((c.gap_pct ?? 0) * 100).toFixed(0)}% gap
+                        +{((c.edge ?? 0) * 100).toFixed(1)}% edge
                       </div>
                     </div>
                   </div>
@@ -236,7 +242,7 @@ export default function ArbitrageDashboard() {
           ) : (
             <div style={{ background: '#0e1318', border: '1px solid #1a2230', overflow: 'hidden' }}>
               <div className="ar-mono" style={{ display: 'grid', gridTemplateColumns: '1fr 100px 100px 80px 90px', gap: 12, padding: '10px 16px', fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#ffffff', borderBottom: '1px solid #1a2230' }}>
-                <div>Matchup — team to advance</div><div>Polymarket</div><div>Kalshi</div><div>Gap</div><div>Kalshi vol</div>
+                <div>Matchup — team to advance</div><div>Poly ask (YES)</div><div>Kalshi ask (NO)</div><div>Edge</div><div>Kalshi vol</div>
               </div>
               {otherGaps.map(c => (
                 <div
@@ -245,9 +251,9 @@ export default function ArbitrageDashboard() {
                   style={{ display: 'grid', gridTemplateColumns: '1fr 100px 100px 80px 90px', gap: 12, padding: '12px 16px', borderBottom: '1px solid #1a2230', alignItems: 'center' }}
                 >
                   <div style={{ fontSize: 12 }}>{c.matchup} <span style={{ color: '#ffffff' }}>— {c.team}</span></div>
-                  <div className="ar-mono" style={{ fontSize: 11, color: '#00c9a7' }}>{((c.polymarket_price ?? 0) * 100).toFixed(2)}¢</div>
-                  <div className="ar-mono" style={{ fontSize: 11, color: '#8892a4' }}>{((c.kalshi_price ?? 0) * 100).toFixed(2)}¢</div>
-                  <div className="ar-mono" style={{ fontSize: 11, color: '#ffffff' }}>{((c.gap_pct ?? 0) * 100).toFixed(0)}%</div>
+                  <div className="ar-mono" style={{ fontSize: 11, color: '#00c9a7' }}>{((c.polymarket_ask ?? 0) * 100).toFixed(2)}¢</div>
+                  <div className="ar-mono" style={{ fontSize: 11, color: '#8892a4' }}>{((c.kalshi_no_ask ?? 0) * 100).toFixed(2)}¢</div>
+                  <div className="ar-mono" style={{ fontSize: 11, color: (c.edge ?? 0) > 0 ? '#3dd68c' : '#ff4d4d' }}>{((c.edge ?? 0) * 100).toFixed(1)}%</div>
                   <div className="ar-mono" style={{ fontSize: 11, color: '#ffffff' }}>${(c.kalshi_volume / 1000).toFixed(0)}K</div>
                 </div>
               ))}

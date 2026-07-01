@@ -7,13 +7,25 @@ import type { NextRequest } from "next/server";
  * (no hardcoded match list, works for every match all tournament long)
  * and Kalshi's KXWCADVANCE series, both public, no auth.
  *
- * Polymarket's soccer-fifwc series (id 11433) lists every match event as
- * it's created — past, live, and upcoming. We filter for open, moneyline-
- * type sub-markets (team-to-win, not props/player markets) and match them
- * against Kalshi's per-match advance markets by team name.
+ * REAL BIDS, NOT LAST-TRADE PRICES:
+ * - Polymarket: Gamma API only gives last-trade price. The actual tradeable
+ *   price lives on the separate CLOB API's public order book (still no auth
+ *   required — CLOB read endpoints are public). We fetch clobTokenIds from
+ *   Gamma, then hit CLOB's /book for each to get the real best ask (the
+ *   price you'd actually pay to buy YES right now).
+ * - Kalshi: yes/no bid & ask are already directly exposed as
+ *   no_ask_dollars — no derivation needed, just use it.
+ *
+ * The genuine-arbitrage check mirrors the calculator: buy YES on Polymarket
+ * (at its live ask) + buy NO on Kalshi (at its live ask). If that combined
+ * cost is under $1, it's a locked profit regardless of outcome.
+ *
+ * Revalidate window is short (15s) since this now reflects live tradeable
+ * prices, not a slow-moving snapshot.
  */
 
 const POLYMARKET_SERIES_ID = "11433"; // soccer-fifwc
+const REVALIDATE_SECONDS = 15;
 
 interface PolyMarketEvent {
   id: string;
@@ -27,6 +39,7 @@ interface PolyMarketEvent {
 interface PolySubMarket {
   question: string;
   outcomePrices: string;
+  clobTokenIds: string; // stringified JSON array: [yesTokenId, noTokenId]
   volume: string;
   volume24hr: number;
   sportsMarketType?: string;
@@ -39,26 +52,42 @@ interface KalshiMarket {
   yes_sub_title: string;
   yes_bid_dollars: string;
   yes_ask_dollars: string;
+  no_bid_dollars: string;
+  no_ask_dollars: string;
   volume_fp: string;
   title: string;
+}
+
+interface ClobBookLevel {
+  price: string;
+  size: string;
+}
+
+interface ClobBook {
+  bids?: ClobBookLevel[];
+  asks?: ClobBookLevel[];
 }
 
 interface MatchComparison {
   matchup: string;
   team: string;
-  polymarket_price: number | null;
+  polymarket_ask: number | null; // real live price to buy YES on Polymarket now
+  polymarket_bid: number | null;
   polymarket_volume: number;
-  kalshi_price: number | null;
+  kalshi_no_ask: number | null; // real live price to buy NO on Kalshi now
+  kalshi_no_bid: number | null;
   kalshi_volume: number;
-  gap: number | null;
-  gap_pct: number | null;
+  combined_price: number | null; // polymarket_ask + kalshi_no_ask
+  edge: number | null; // 1 - combined_price (before fees)
+  is_arbitrage: boolean;
+  stale: boolean; // true if Polymarket live book fetch failed, falling back to last-trade
 }
 
 async function fetchPolymarketWorldCupEvents(): Promise<PolyMarketEvent[]> {
   try {
     const res = await fetch(
       `https://gamma-api.polymarket.com/events?series_id=${POLYMARKET_SERIES_ID}&closed=false&limit=100`,
-      { next: { revalidate: 180 } }
+      { next: { revalidate: REVALIDATE_SECONDS } }
     );
     if (!res.ok) return [];
     return await res.json();
@@ -71,13 +100,31 @@ async function fetchKalshiAdvanceMarkets(): Promise<KalshiMarket[]> {
   try {
     const res = await fetch(
       "https://api.elections.kalshi.com/trade-api/v2/markets?series_ticker=KXWCADVANCE&status=open&limit=200",
-      { next: { revalidate: 180 } }
+      { next: { revalidate: REVALIDATE_SECONDS } }
     );
     if (!res.ok) return [];
     const data = await res.json();
     return data.markets ?? [];
   } catch {
     return [];
+  }
+}
+
+// Live order book for a single Polymarket outcome token — public, no auth.
+async function fetchPolymarketBook(tokenId: string): Promise<{ bestBid: number | null; bestAsk: number | null }> {
+  try {
+    const res = await fetch(`https://clob.polymarket.com/book?token_id=${tokenId}`, {
+      next: { revalidate: REVALIDATE_SECONDS },
+    });
+    if (!res.ok) return { bestBid: null, bestAsk: null };
+    const data: ClobBook = await res.json();
+    const bids = data.bids ?? [];
+    const asks = data.asks ?? [];
+    const bestBid = bids.length ? Math.max(...bids.map((b) => parseFloat(b.price))) : null;
+    const bestAsk = asks.length ? Math.min(...asks.map((a) => parseFloat(a.price))) : null;
+    return { bestBid, bestAsk };
+  } catch {
+    return { bestBid: null, bestAsk: null };
   }
 }
 
@@ -109,7 +156,16 @@ export async function GET(req: NextRequest) {
       kalshiByTeam.set(normalizeTeam(m.yes_sub_title), m);
     }
 
-    const results: MatchComparison[] = [];
+    // First pass: find matched (Polymarket sub-market, Kalshi market) pairs
+    type Candidate = {
+      matchup: string;
+      team: string;
+      lastTradePrice: number;
+      yesTokenId: string | null;
+      polymarketVolume: number;
+      kalshiMatch: KalshiMarket;
+    };
+    const candidates: Candidate[] = [];
 
     for (const event of events) {
       if (event.closed) continue;
@@ -117,11 +173,18 @@ export async function GET(req: NextRequest) {
 
       for (const m of moneylineMarkets) {
         let yesPrice = 0;
+        let yesTokenId: string | null = null;
         try {
           const prices = JSON.parse(m.outcomePrices);
           yesPrice = parseFloat(prices[0]);
         } catch {
           continue;
+        }
+        try {
+          const tokenIds = JSON.parse(m.clobTokenIds);
+          yesTokenId = tokenIds?.[0] ?? null;
+        } catch {
+          yesTokenId = null;
         }
 
         const team = m.groupItemTitle || m.question.replace("Will ", "").split(" win on ")[0];
@@ -130,30 +193,55 @@ export async function GET(req: NextRequest) {
 
         if (!kalshiMatch) continue; // only show matches we can actually compare
 
-        const kalshiPrice = (parseFloat(kalshiMatch.yes_bid_dollars) + parseFloat(kalshiMatch.yes_ask_dollars)) / 2;
-        const gap = Math.abs(yesPrice - kalshiPrice);
-        const gapPct = Math.max(yesPrice, kalshiPrice) > 0 ? gap / Math.max(yesPrice, kalshiPrice, 0.001) : null;
-
-        results.push({
+        candidates.push({
           matchup: event.title,
           team,
-          polymarket_price: yesPrice,
-          polymarket_volume: m.volume24hr ?? 0,
-          kalshi_price: kalshiPrice,
-          kalshi_volume: parseFloat(kalshiMatch.volume_fp) || 0,
-          gap,
-          gap_pct: gapPct,
+          lastTradePrice: yesPrice,
+          yesTokenId,
+          polymarketVolume: m.volume24hr ?? 0,
+          kalshiMatch,
         });
       }
     }
 
-    const sorted = results.sort(
-      (a, b) => (b.kalshi_volume + b.polymarket_volume) - (a.kalshi_volume + a.polymarket_volume)
+    // Second pass: pull live Polymarket order books in parallel for every candidate
+    const books = await Promise.all(
+      candidates.map((c) => (c.yesTokenId ? fetchPolymarketBook(c.yesTokenId) : Promise.resolve({ bestBid: null, bestAsk: null })))
     );
+
+    const results: MatchComparison[] = candidates.map((c, i) => {
+      const book = books[i];
+      const stale = book.bestAsk === null;
+      const polymarketAsk = book.bestAsk ?? c.lastTradePrice; // fall back to last trade if book fetch failed
+      const polymarketBid = book.bestBid ?? c.lastTradePrice;
+
+      const kalshiNoAsk = parseFloat(c.kalshiMatch.no_ask_dollars);
+      const kalshiNoBid = parseFloat(c.kalshiMatch.no_bid_dollars);
+
+      const combinedPrice = polymarketAsk + kalshiNoAsk;
+      const edge = 1 - combinedPrice;
+
+      return {
+        matchup: c.matchup,
+        team: c.team,
+        polymarket_ask: polymarketAsk,
+        polymarket_bid: polymarketBid,
+        polymarket_volume: c.polymarketVolume,
+        kalshi_no_ask: kalshiNoAsk,
+        kalshi_no_bid: kalshiNoBid,
+        kalshi_volume: parseFloat(c.kalshiMatch.volume_fp) || 0,
+        combined_price: combinedPrice,
+        edge,
+        is_arbitrage: edge > 0,
+        stale,
+      };
+    });
+
+    const sorted = results.sort((a, b) => (b.edge ?? -1) - (a.edge ?? -1));
 
     return Response.json({
       comparisons: sorted,
-      total_polymarket_events: events.length,
+      total_polymarket_matches: events.length,
       total_kalshi_advance_markets: kalshiMarkets.length,
       matched_count: sorted.length,
       timestamp: new Date().toISOString(),
