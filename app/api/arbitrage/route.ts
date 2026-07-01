@@ -162,18 +162,27 @@ function isMoneylineWinMarket(m: PolySubMarket): boolean {
 
 export async function GET(req: NextRequest) {
   // TEMP DEBUG: /api/arbitrage?debug=1 dumps every raw sub-market question
-  // + sportsMarketType for the first open event, so we can see exactly how
+  // + sportsMarketType for the first main match-odds event (explicitly
+  // skipping "Player Props" sub-events, which are a separate event per
+  // match full of per-player prop questions), so we can see exactly how
   // Polymarket labels the "Team to Advance" market instead of guessing at
   // wording. Remove this branch once the real pattern is confirmed.
   const { searchParams } = new URL(req.url);
   if (searchParams.get("debug") === "1") {
     const events = await fetchPolymarketWorldCupEvents();
-    const firstOpen = events.find((e) => !e.closed) ?? events[0];
-    if (!firstOpen) return Response.json({ error: "no events returned from Polymarket" });
+    const mainEvent = events.find(
+      (e) => !e.closed && !e.title.toLowerCase().includes("player props")
+    );
+    if (!mainEvent) {
+      return Response.json({
+        error: "no main match-odds event found",
+        all_event_titles: events.map((e) => e.title),
+      });
+    }
     return Response.json({
-      event_title: firstOpen.title,
-      event_slug: firstOpen.slug,
-      sub_markets: (firstOpen.markets ?? []).map((m) => ({
+      event_title: mainEvent.title,
+      event_slug: mainEvent.slug,
+      sub_markets: (mainEvent.markets ?? []).map((m) => ({
         question: m.question,
         sportsMarketType: m.sportsMarketType ?? null,
         groupItemTitle: m.groupItemTitle,
