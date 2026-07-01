@@ -126,6 +126,7 @@ async function fetchPolymarketBook(tokenId: string): Promise<{ bestBid: number |
 function normalizeTeam(name: string): string {
   return name
     .toLowerCase()
+    .replace(/^reg time:\s*/i, "") // Kalshi KXWCGAME prefixes every sub-title, e.g. "Reg Time: Spain"
     .replace(/\s*advances\s*$/i, "")
     .trim()
     .replace(/[^a-z]/g, "");
@@ -141,31 +142,6 @@ function isMoneylineWinMarket(m: PolySubMarket): boolean {
 }
 
 export async function GET(req: NextRequest) {
-  const { searchParams } = new URL(req.url);
-  if (searchParams.get("debug") === "1") {
-    const [events, kalshiMarkets] = await Promise.all([
-      fetchPolymarketWorldCupEvents(),
-      fetchKalshiRegTimeMarkets(),
-    ]);
-    const polyTeams = events
-      .flatMap((e) => (e.markets ?? []).filter(isMoneylineWinMarket))
-      .map((m) => ({
-        raw_groupItemTitle: m.groupItemTitle,
-        raw_question: m.question,
-        normalized: normalizeTeam(m.groupItemTitle || m.question.replace(/^Will /i, "").split(" win on ")[0]),
-      }));
-    const kalshiTeams = kalshiMarkets.map((m) => ({
-      raw_yes_sub_title: m.yes_sub_title,
-      normalized: normalizeTeam(m.yes_sub_title),
-    }));
-    return Response.json({
-      poly_event_count: events.length,
-      kalshi_market_count: kalshiMarkets.length,
-      poly_teams_sample: polyTeams.slice(0, 15),
-      kalshi_teams_sample: kalshiTeams.slice(0, 15),
-    });
-  }
-
   try {
     const [events, kalshiMarkets] = await Promise.all([
       fetchPolymarketWorldCupEvents(),
