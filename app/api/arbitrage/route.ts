@@ -3,38 +3,26 @@ import type { NextRequest } from "next/server";
 /**
  * Cross-platform arbitrage — per-match World Cup moneyline markets.
  *
- * Self-updating: pulls Polymarket's full World Cup series via series_id
- * (no hardcoded match list, works for every match all tournament long)
- * and Kalshi's KXWCADVANCE series, both public, no auth.
- *
  * REAL BIDS, NOT LAST-TRADE PRICES:
  * - Polymarket: Gamma API only gives last-trade price. The actual tradeable
  *   price lives on the separate CLOB API's public order book (still no auth
  *   required — CLOB read endpoints are public). We fetch clobTokenIds from
- *   Gamma, then hit CLOB's /book for each to get the real best ask (the
- *   price you'd actually pay to buy YES right now).
- * - Kalshi: yes/no bid & ask are already directly exposed as
- *   no_ask_dollars — no derivation needed, just use it.
+ *   Gamma, then hit CLOB's /book for each to get the real best ask.
+ * - Kalshi: bid & ask are already directly exposed — no derivation needed.
  *
- * CONFIRMED LIMITATION (checked 2026-07-01 against a live event):
- * Polymarket's per-match event data (this series_id) only contains
- * regulation-time moneyline sub-markets — "Will X win on [date]?" for each
- * team plus a draw market. There is NO "Team to Advance" (whole-tie,
- * including ET/penalties) sub-market anywhere in this event's data. That
- * market exists on Polymarket's own site but is sourced from somewhere
- * this API doesn't expose (likely a separate bracket/round-level event).
+ * CONFIRMED FIX (2026-07-01): Kalshi runs TWO separate soccer series for
+ * the same match — KXWCADVANCE (whole tie: reg + ET + penalties) and
+ * KXWCGAME (regulation time only: 90 min + stoppage, explicitly excludes
+ * ET/penalties). Polymarket's "Will X win on [date]" markets are also
+ * regulation-time-only (draw is a separate third outcome, same structure
+ * as KXWCGAME). So KXWCGAME — not KXWCADVANCE — is the genuine
+ * apples-to-apples match. Comparing against KXWCADVANCE (the earlier
+ * approach) created false non-equivalence: it wasn't that Polymarket
+ * lacked comparable data, it's that we were pointed at the wrong Kalshi
+ * series the whole time. This route now uses KXWCGAME, so equivalent
+ * comparisons and genuine is_arbitrage can actually fire.
  *
- * Kalshi's KXWCADVANCE markets resolve on the WHOLE tie. Comparing them
- * against Polymarket's regulation-time-only price is NOT a real hedge —
- * see isAdvanceMarket() below for why. Since we cannot currently source
- * Polymarket's true equivalent price, every comparison in this route is
- * intentionally flagged equivalent_market: false and is_arbitrage will
- * never fire. This is correct, permanent behavior, not a bug: it's safer
- * to show "not equivalent" honestly than to risk a false arb signal.
- * These rows still surface as reference/manual-cross-check data — verify
- * the true advance price on each platform directly before ever trading.
- *
- * Revalidate window is short (15s) since this now reflects live tradeable
+ * Revalidate window is short (15s) since this reflects live tradeable
  * prices, not a slow-moving snapshot.
  */
 
@@ -46,7 +34,6 @@ interface PolyMarketEvent {
   slug: string;
   title: string;
   closed: boolean;
-  startDate: string;
   markets: PolySubMarket[];
 }
 
@@ -54,27 +41,20 @@ interface PolySubMarket {
   question: string;
   outcomePrices: string;
   clobTokenIds: string; // stringified JSON array: [yesTokenId, noTokenId]
-  volume: string;
   volume24hr: number;
-  sportsMarketType?: string;
   closed: boolean;
   groupItemTitle: string;
 }
 
 interface KalshiMarket {
-  ticker: string;
   yes_sub_title: string;
-  yes_bid_dollars: string;
-  yes_ask_dollars: string;
   no_bid_dollars: string;
   no_ask_dollars: string;
   volume_fp: string;
-  title: string;
 }
 
 interface ClobBookLevel {
   price: string;
-  size: string;
 }
 
 interface ClobBook {
@@ -94,7 +74,7 @@ interface MatchComparison {
   combined_price: number | null; // polymarket_ask + kalshi_no_ask
   edge: number | null; // 1 - combined_price (before fees)
   is_arbitrage: boolean;
-  equivalent_market: boolean; // false = Polymarket side is a reg-time-only fallback, not a true hedge
+  equivalent_market: boolean; // false = Polymarket side is reg-time-only, not a true hedge
   stale: boolean; // true if Polymarket live book fetch failed, falling back to last-trade
 }
 
@@ -111,10 +91,10 @@ async function fetchPolymarketWorldCupEvents(): Promise<PolyMarketEvent[]> {
   }
 }
 
-async function fetchKalshiAdvanceMarkets(): Promise<KalshiMarket[]> {
+async function fetchKalshiRegTimeMarkets(): Promise<KalshiMarket[]> {
   try {
     const res = await fetch(
-      "https://api.elections.kalshi.com/trade-api/v2/markets?series_ticker=KXWCADVANCE&status=open&limit=200",
+      "https://api.elections.kalshi.com/trade-api/v2/markets?series_ticker=KXWCGAME&status=open&limit=200",
       { next: { revalidate: REVALIDATE_SECONDS } }
     );
     if (!res.ok) return [];
@@ -151,23 +131,9 @@ function normalizeTeam(name: string): string {
     .replace(/[^a-z]/g, "");
 }
 
-// Kalshi's KXWCADVANCE markets resolve on the WHOLE tie — regulation +
-// extra time + penalties. To compare apples-to-apples we need Polymarket's
-// equivalent "Team to Advance" market, NOT the "Moneyline REG TIME" market
-// (which only resolves on the 90-minute result and excludes ET/penalties).
-// Comparing REG-TIME-only prices against Kalshi's advance price creates a
-// false arbitrage signal: in a draw-then-penalties scenario, a hedge built
-// from REG-TIME YES + advance-NO can lose BOTH legs simultaneously.
-function isAdvanceMarket(m: PolySubMarket): boolean {
-  if (m.closed) return false;
-  const q = m.question.toLowerCase();
-  return q.includes("advance");
-}
-
-// Fallback only — regulation-time-only moneyline. Kept for events where
-// Polymarket hasn't listed a "Team to Advance" market yet, but flagged as
-// non-equivalent so the frontend can warn instead of treating it as a
-// genuine hedge against Kalshi's advance price.
+// Polymarket's "Will X win on [date]" markets are regulation-time-only
+// (draw is a separate outcome). Now matched against Kalshi's KXWCGAME,
+// which is also regulation-time-only — a genuine equivalent pair.
 function isMoneylineWinMarket(m: PolySubMarket): boolean {
   if (m.closed) return false;
   const q = m.question.toLowerCase();
@@ -175,11 +141,10 @@ function isMoneylineWinMarket(m: PolySubMarket): boolean {
 }
 
 export async function GET(req: NextRequest) {
-
   try {
     const [events, kalshiMarkets] = await Promise.all([
       fetchPolymarketWorldCupEvents(),
-      fetchKalshiAdvanceMarkets(),
+      fetchKalshiRegTimeMarkets(),
     ]);
 
     const kalshiByTeam = new Map<string, KalshiMarket>();
@@ -187,7 +152,6 @@ export async function GET(req: NextRequest) {
       kalshiByTeam.set(normalizeTeam(m.yes_sub_title), m);
     }
 
-    // First pass: find matched (Polymarket sub-market, Kalshi market) pairs
     type Candidate = {
       matchup: string;
       team: string;
@@ -195,61 +159,45 @@ export async function GET(req: NextRequest) {
       yesTokenId: string | null;
       polymarketVolume: number;
       kalshiMatch: KalshiMarket;
-      equivalentMarket: boolean; // false = fell back to reg-time-only, NOT a true hedge vs Kalshi's advance price
     };
     const candidates: Candidate[] = [];
 
-    function buildCandidates(m: PolySubMarket, event: PolyMarketEvent, equivalentMarket: boolean) {
-      let yesPrice = 0;
-      let yesTokenId: string | null = null;
-      try {
-        const prices = JSON.parse(m.outcomePrices);
-        yesPrice = parseFloat(prices[0]);
-      } catch {
-        return;
-      }
-      try {
-        const tokenIds = JSON.parse(m.clobTokenIds);
-        yesTokenId = tokenIds?.[0] ?? null;
-      } catch {
-        yesTokenId = null;
-      }
-
-      const team = m.groupItemTitle || m.question.replace(/^Will /i, "").split(/ win on | advance/i)[0];
-      const normTeam = normalizeTeam(team);
-      const kalshiMatch = kalshiByTeam.get(normTeam);
-
-      if (!kalshiMatch) return; // only show matches we can actually compare
-
-      candidates.push({
-        matchup: event.title,
-        team,
-        lastTradePrice: yesPrice,
-        yesTokenId,
-        polymarketVolume: m.volume24hr ?? 0,
-        kalshiMatch,
-        equivalentMarket,
-      });
-    }
-
     for (const event of events) {
       if (event.closed) continue;
-      const advanceMarkets = (event.markets ?? []).filter(isAdvanceMarket);
+      const moneylineMarkets = (event.markets ?? []).filter(isMoneylineWinMarket);
 
-      if (advanceMarkets.length > 0) {
-        // True apples-to-apples: Polymarket's own "Team to Advance" market,
-        // same resolution criteria (reg + ET + penalties) as Kalshi.
-        for (const m of advanceMarkets) buildCandidates(m, event, true);
-      } else {
-        // No advance market listed yet for this event — fall back to the
-        // regulation-time moneyline, but flag it so the frontend can warn
-        // this is NOT a genuine hedge against Kalshi's advance price.
-        const moneylineMarkets = (event.markets ?? []).filter(isMoneylineWinMarket);
-        for (const m of moneylineMarkets) buildCandidates(m, event, false);
+      for (const m of moneylineMarkets) {
+        let yesPrice = 0;
+        let yesTokenId: string | null = null;
+        try {
+          const prices = JSON.parse(m.outcomePrices);
+          yesPrice = parseFloat(prices[0]);
+        } catch {
+          continue;
+        }
+        try {
+          const tokenIds = JSON.parse(m.clobTokenIds);
+          yesTokenId = tokenIds?.[0] ?? null;
+        } catch {
+          yesTokenId = null;
+        }
+
+        const team = m.groupItemTitle || m.question.replace(/^Will /i, "").split(" win on ")[0];
+        const kalshiMatch = kalshiByTeam.get(normalizeTeam(team));
+        if (!kalshiMatch) continue; // only show teams present on both platforms
+
+        candidates.push({
+          matchup: event.title,
+          team,
+          lastTradePrice: yesPrice,
+          yesTokenId,
+          polymarketVolume: m.volume24hr ?? 0,
+          kalshiMatch,
+        });
       }
     }
 
-    // Second pass: pull live Polymarket order books in parallel for every candidate
+    // Pull live Polymarket order books in parallel for every candidate
     const books = await Promise.all(
       candidates.map((c) => (c.yesTokenId ? fetchPolymarketBook(c.yesTokenId) : Promise.resolve({ bestBid: null, bestAsk: null })))
     );
@@ -277,11 +225,10 @@ export async function GET(req: NextRequest) {
         kalshi_volume: parseFloat(c.kalshiMatch.volume_fp) || 0,
         combined_price: combinedPrice,
         edge,
-        // Only a genuine hedge if both platforms resolve on the same
-        // criteria. A regulation-time-only fallback can look like an edge
-        // while actually being able to lose both legs (see draw→penalties).
-        is_arbitrage: edge > 0 && c.equivalentMarket,
-        equivalent_market: c.equivalentMarket,
+        // Both sides are now confirmed regulation-time-only — a genuine
+        // hedge, so edge > 0 can safely mean real arbitrage.
+        is_arbitrage: edge > 0,
+        equivalent_market: true,
         stale,
       };
     });

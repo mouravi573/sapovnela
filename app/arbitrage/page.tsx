@@ -171,7 +171,7 @@ export default function ArbitrageDashboard() {
             <div className="ar-mono" style={{ fontSize: 22, fontWeight: 600, color: '#00c9a7' }}>{stats.poly}</div>
           </div>
           <div style={{ background: '#0e1318', padding: '16px 20px' }}>
-            <div className="ar-mono" style={{ fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#ffffff', marginBottom: 6 }}>Kalshi advance markets</div>
+            <div className="ar-mono" style={{ fontSize: 9, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#ffffff', marginBottom: 6 }}>Kalshi reg-time markets</div>
             <div className="ar-mono" style={{ fontSize: 22, fontWeight: 600, color: '#8892a4' }}>{stats.kalshi}</div>
           </div>
           <div style={{ background: '#0e1318', padding: '16px 20px' }}>
@@ -190,9 +190,9 @@ export default function ArbitrageDashboard() {
 
         <div style={{ background: '#0e1318', border: '1px solid #243040', padding: '12px 16px', marginBottom: 32 }}>
           <div className="ar-mono" style={{ fontSize: 10, color: '#8892a4', lineHeight: 1.6 }}>
-            ⓘ Polymarket doesn't expose a "Team to Advance" price through this data feed — only regulation-time moneyline.
-            Since that's not equivalent to Kalshi's whole-tie advance market, genuine arbitrage can't be auto-confirmed here.
-            Rows below are reference only — verify the real advance price on both platforms before trading.
+            ⓘ Compares Polymarket's regulation-time market against Kalshi's KXWCGAME (also regulation-time-only) —
+            a genuine equivalent pair. Real live bid/ask, refreshed every 20s. Still confirm exact prices on both
+            platforms before placing a trade — books move between refreshes.
           </div>
         </div>
 
