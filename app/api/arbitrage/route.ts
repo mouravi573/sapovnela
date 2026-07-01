@@ -137,7 +137,6 @@ function normalizeTeam(name: string): string {
     .replace(/[^a-z]/g, "");
 }
 
-// Filter sub-markets to just the moneyline "Will X win" questions,
 // Kalshi's KXWCADVANCE markets resolve on the WHOLE tie — regulation +
 // extra time + penalties. To compare apples-to-apples we need Polymarket's
 // equivalent "Team to Advance" market, NOT the "Moneyline REG TIME" market
@@ -162,6 +161,28 @@ function isMoneylineWinMarket(m: PolySubMarket): boolean {
 }
 
 export async function GET(req: NextRequest) {
+  // TEMP DEBUG: /api/arbitrage?debug=1 dumps every raw sub-market question
+  // + sportsMarketType for the first open event, so we can see exactly how
+  // Polymarket labels the "Team to Advance" market instead of guessing at
+  // wording. Remove this branch once the real pattern is confirmed.
+  const { searchParams } = new URL(req.url);
+  if (searchParams.get("debug") === "1") {
+    const events = await fetchPolymarketWorldCupEvents();
+    const firstOpen = events.find((e) => !e.closed) ?? events[0];
+    if (!firstOpen) return Response.json({ error: "no events returned from Polymarket" });
+    return Response.json({
+      event_title: firstOpen.title,
+      event_slug: firstOpen.slug,
+      sub_markets: (firstOpen.markets ?? []).map((m) => ({
+        question: m.question,
+        sportsMarketType: m.sportsMarketType ?? null,
+        groupItemTitle: m.groupItemTitle,
+        closed: m.closed,
+        outcomePrices: m.outcomePrices,
+      })),
+    });
+  }
+
   try {
     const [events, kalshiMarkets] = await Promise.all([
       fetchPolymarketWorldCupEvents(),
