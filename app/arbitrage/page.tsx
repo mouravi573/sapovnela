@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import Link from 'next/link'
 
 interface ArbResult {
@@ -33,6 +33,8 @@ interface PaperTrade {
 }
 
 const STORAGE_KEY = 'sapovnela_arb_trades'
+const NET_EDGE_HOT = 0.04 // matches the ⚡ tier threshold used in rendering
+const NET_EDGE_WATCH = 0.015 // matches the ★ tier threshold used in rendering
 
 export default function ArbitrageDashboard() {
   const [comparisons, setComparisons] = useState<ArbResult[]>([])
@@ -42,6 +44,22 @@ export default function ArbitrageDashboard() {
   const [modalOpen, setModalOpen] = useState(false)
   const [form, setForm] = useState({ question: '', side: 'YES' as 'YES' | 'NO', entry: '', size: '25', notes: '' })
   const [clock, setClock] = useState('')
+  const [notifyPermission, setNotifyPermission] = useState<NotificationPermission | 'unsupported'>('default')
+  const notifiedRowsRef = useRef<Set<string>>(new Set())
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !('Notification' in window)) {
+      setNotifyPermission('unsupported')
+      return
+    }
+    setNotifyPermission(Notification.permission)
+  }, [])
+
+  async function enableNotifications() {
+    if (typeof window === 'undefined' || !('Notification' in window)) return
+    const result = await Notification.requestPermission()
+    setNotifyPermission(result)
+  }
 
   useEffect(() => {
     const saved = localStorage.getItem(STORAGE_KEY)
@@ -68,13 +86,34 @@ export default function ArbitrageDashboard() {
     try {
       const res = await fetch('/api/arbitrage')
       const data = await res.json()
-      setComparisons(data.comparisons ?? [])
+      const rows: ArbResult[] = data.comparisons ?? []
+      setComparisons(rows)
       setStats({
         poly: data.total_polymarket_matches ?? 0,
         kalshi: data.total_kalshi_advance_markets ?? 0,
         matched: data.matched_count ?? 0,
       })
       setStatus('Live')
+
+      // Notify only on NEW hot rows — a row that stays hot across polls
+      // shouldn't re-fire every 20s. If it cools off and later goes hot
+      // again, it's removed from the tracked set below and will re-notify.
+      if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+        const currentHotKeys = new Set<string>()
+        for (const r of rows) {
+          if ((r.net_edge ?? -1) >= NET_EDGE_HOT) {
+            const key = `${r.matchup}::${r.team}`
+            currentHotKeys.add(key)
+            if (!notifiedRowsRef.current.has(key)) {
+              new Notification('Sapovnela — arbitrage opportunity', {
+                body: `${r.team} (${r.matchup})\nNet edge: +${((r.net_edge ?? 0) * 100).toFixed(1)}% — Poly ${((r.polymarket_ask ?? 0) * 100).toFixed(1)}¢ / Kalshi NO ${((r.kalshi_no_ask ?? 0) * 100).toFixed(1)}¢`,
+                tag: key, // replaces any existing notification for the same row instead of stacking
+              })
+            }
+          }
+        }
+        notifiedRowsRef.current = currentHotKeys
+      }
     } catch {
       setStatus('Error')
     }
@@ -155,6 +194,23 @@ export default function ArbitrageDashboard() {
           </Link>
           <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
             <Link href="/calculator" className="ar-mono" style={{ fontSize: 11, color: '#00c9a7', textDecoration: 'none', letterSpacing: '0.06em', border: '1px solid rgba(0,201,167,0.3)', padding: '4px 10px' }}>⊞ Calculator</Link>
+            {notifyPermission === 'unsupported' ? null : notifyPermission === 'granted' ? (
+              <div className="ar-mono" style={{ fontSize: 11, color: '#3dd68c', display: 'flex', alignItems: 'center', gap: 5 }} title="You'll get a desktop notification when a row crosses the ⚡ hot threshold">
+                🔔 Alerts on
+              </div>
+            ) : notifyPermission === 'denied' ? (
+              <div className="ar-mono" style={{ fontSize: 11, color: '#8892a4' }} title="Notifications blocked in browser settings — re-enable in your browser's site settings">
+                🔕 Blocked
+              </div>
+            ) : (
+              <button
+                onClick={enableNotifications}
+                className="ar-mono"
+                style={{ fontSize: 11, color: '#8892a4', background: 'transparent', border: '1px solid #243040', padding: '4px 10px', cursor: 'pointer' }}
+              >
+                🔔 Enable alerts
+              </button>
+            )}
             <div className="ar-mono" style={{ fontSize: 11, color: '#8892a4', display: 'flex', alignItems: 'center', gap: 6 }}>
               <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#3dd68c', boxShadow: '0 0 8px #3dd68c', display: 'inline-block' }} />
               {status}
@@ -219,7 +275,7 @@ export default function ArbitrageDashboard() {
                 // while fees eat the whole thing (see the -1% to -2% rows
                 // we've actually seen live: raw edge alone is misleading).
                 const ne = c.net_edge ?? -1
-                const tier = ne >= 0.04 ? 'hot' : ne >= 0.015 ? 'watch' : 'normal'
+                const tier = ne >= NET_EDGE_HOT ? 'hot' : ne >= NET_EDGE_WATCH ? 'watch' : 'normal'
                 const rowStyle =
                   tier === 'hot'
                     ? { background: 'rgba(61,214,140,0.08)', borderLeft: '3px solid #3dd68c' }
